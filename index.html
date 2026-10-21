@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Photos by Gab">
+<link rel="icon" href="logo.jpeg">
+<title>My Portfolio</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400&display=swap" media="print" onload="this.media='all'">
+<style>
+:root{
+  --bg:#f7f7f5; --ink:#161615; --mute:#8e8d88; --line:#dcdbd6; --accent:#800000;
+  --scope:#e8e7e3; --grat:#d2d0ca; --grat-ink:#aeaba4; --skin:#cbb8a6; --puck:#1a1a19;
+  --sans:"Geist","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#0e0e0d;--ink:#ebeae5;--mute:#7c7b76;--line:#2a2a27;--accent:#c4524f;--scope:#262624;--grat:#3a3936;--grat-ink:#6a6862;--skin:#6b5d50;--puck:#f2f1ec;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#0e0e0d;--ink:#ebeae5;--mute:#7c7b76;--line:#2a2a27;--accent:#c4524f;--scope:#262624;--grat:#3a3936;--grat-ink:#6a6862;--skin:#6b5d50;--puck:#f2f1ec;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:400 13px/1.4 var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+.page{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr);gap:16px;padding-block:16px;padding-inline:20px}
+header{display:flex;justify-content:space-between;align-items:center;position:relative}
+.logo{display:block;width:28px;height:28px}.logo img{display:block;width:100%;height:100%}
+.infobtn{color:var(--mute)}
+.infobtn:hover,.infobtn[aria-expanded="true"]{color:var(--ink)}
+.info{position:absolute;right:0;top:calc(100% + 10px);z-index:5;width:min(280px,calc(100vw - 40px));background:var(--bg);border:1px solid var(--line);padding:14px 16px;display:grid;gap:8px}
+.info p{margin:0}
+.info .m{color:var(--mute)}
+.info a{text-decoration:none;border-bottom:1px solid var(--line)}
+.info a:hover{border-color:currentColor}
+.mail{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.mail a{user-select:all}
+#copymail{color:var(--mute);font-size:12px}
+#copymail:hover{color:var(--ink)}
+
+main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clamp(24px,5vw,80px);align-items:center;min-height:0}
+.left{display:flex;flex-direction:column;align-items:center;gap:18px;min-height:0}
+.scope{position:relative;width:min(100%,52vh,440px);aspect-ratio:1;max-width:100%;border-radius:50%;background:var(--scope);touch-action:none;cursor:crosshair;user-select:none}
+.scope canvas{image-rendering:auto}
+.scope canvas,.scope svg{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;pointer-events:none}
+.g{fill:none;stroke:var(--grat);stroke-width:.004}
+.g-skin{stroke:var(--skin);stroke-width:.004;stroke-dasharray:.02 .015}
+.g-box{fill:none;stroke:var(--grat-ink);stroke-width:.005}
+.g-t{fill:var(--grat-ink);font:400 .042px var(--mono);text-anchor:middle;dominant-baseline:central;letter-spacing:.004px}
+.puck{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:1.5px solid var(--puck);box-shadow:0 0 0 1px var(--scope),inset 0 0 0 1px var(--scope);cursor:grab;touch-action:none}
+.puck::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--puck)}
+.note{margin:0;color:var(--mute);font-size:12px;text-align:center;max-width:44ch;min-height:2.8em;text-wrap:balance}
+.puck:active{cursor:grabbing}
+.puck.hint::before{content:"";position:absolute;inset:-7px;border-radius:50%;border:1.5px solid var(--accent);animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.7);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+.cue{display:none;margin:0;font-size:12px;line-height:1.35;color:var(--ink)}
+.cue b{font-weight:500;color:var(--accent)}
+.readout{display:flex;gap:18px;font:400 12px/1 var(--mono);color:var(--mute);font-variant-numeric:tabular-nums}
+.readout b{font-weight:400;color:var(--ink)}
+.match{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:4px 2px}
+.match:focus-within{border-color:var(--ink)}
+.match label{color:var(--mute);font-size:12px;white-space:nowrap}
+.match .chip{width:14px;height:14px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.match input{font:400 13px/1 var(--mono);color:var(--ink);background:none;border:0;outline:0;width:8ch;padding:4px 0;text-transform:lowercase}
+.match input::placeholder{color:var(--mute)}
+.match button{color:var(--mute);font-size:12px}
+.match button:hover{color:var(--ink)}
+.match[data-bad] input{color:var(--accent)}
+.brand{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;box-shadow:0 0 0 1.5px var(--scope),0 0 0 2.5px var(--ink);pointer-events:none}
+.pal{position:absolute;left:0;right:0;bottom:0;display:flex;opacity:0;transition:opacity .15s}
+.tile:hover .pal,.tile:focus-within .pal{opacity:1}
+.pal button{flex:1;height:30px;display:flex;align-items:flex-end;padding:0 0 5px 6px;font:400 10px/1 var(--mono);letter-spacing:.02em}
+.pal button span{opacity:0;transition:opacity .15s}
+.pal button:hover span,.pal button:focus-visible span{opacity:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);background:var(--ink);color:var(--bg);padding:7px 12px;font:400 12px/1 var(--mono);opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:10}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (hover:none){.pal{opacity:1}.pal button{height:10px;padding:0}.pal button span{display:none}}
+
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-content:center;width:100%;max-width:calc((100vh - 140px) * 1.5)}
+.tile{position:relative;aspect-ratio:1;overflow:hidden;background:#fff;padding:5%;margin:0}
+.tile img{width:100%;height:100%;object-fit:contain;display:block}
+.tile.in img{animation:in .45s ease both}
+@keyframes in{from{opacity:0}to{opacity:1}}
+.tile figcaption{position:absolute;left:0;top:0;padding:3px 6px;font-size:11px;background:var(--bg);opacity:0;transition:opacity .15s}
+.tile:hover figcaption{opacity:1}
+
+@media (max-width:760px){
+  main{display:block}
+  .left{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;background:var(--bg);display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px 16px;padding-block:8px 12px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+  .left .scope{grid-row:1 / span 3;width:min(40vw,168px)}
+  .left .readout{gap:12px;font-size:11px}
+  .left .match{padding:2px 0;gap:8px}
+  .left .match label{display:none}
+  .left .match input{width:7.5ch}
+  .note{display:none}
+  .cue{display:block}
+  .puck{width:22px;height:22px;margin:-11px 0 0 -11px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  html,body{height:auto}
+  .page{height:auto;min-height:100%}
+  main{grid-template-columns:1fr;gap:24px}
+  .grid{max-width:none;gap:6px}
+}
+@media (prefers-reduced-motion:reduce){.puck.hint::before{animation:none;transform:scale(1.4);opacity:.6}.tile.in img{animation:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a class="logo" href="#" aria-label="Gab"><img src="logo.jpeg" alt="Gab" width="28" height="28"></a>
+    <button class="infobtn" id="infobtn" type="button" aria-expanded="false" aria-controls="info">Info</button>
+    <div class="info" id="info" hidden>
+      <p>Gab — Photos I Like</p>
+      <p class="m">Drag through the scope to find frames by colour.</p>
+      <p class="mail"><a href="mailto:gabrielvilnar@gmail.com" id="mail">gabrielvilnar@gmail.com</a><button type="button" id="copymail">Copy</button></p>
+      <p><a href="https://www.instagram.com/gabrielvilnar/" target="_blank" rel="noopener">Instagram @gabrielvilnar</a></p>
+    </div>
+  </header>
+  <main>
+    <div class="left">
+      <div class="scope" id="scope" aria-label="Vectorscope. Drag the point to pick a colour.">
+        <canvas id="trace"></canvas>
+        <svg id="grat" viewBox="-1.05 -1.05 2.1 2.1" aria-hidden="true"></svg>
+        <div class="brand" id="brand" hidden></div>
+        <div class="puck hint" id="puck" tabindex="0" role="slider" aria-label="Colour picker. Arrow keys move, Enter resets."></div>
+      </div>
+      <p class="cue" id="cue"><b>Drag the dot</b> to change the photos by colour.</p>
+      <div class="readout"><span>HUE <b id="rh">000°</b></span><span>SAT <b id="rs">00%</b></span></div>
+      <form class="match" id="match" autocomplete="off">
+        <label for="hex">Brand colour</label><span class="chip" id="chip"></span>
+        <input id="hex" name="hex" placeholder="#800000" maxlength="7" spellcheck="false" aria-describedby="note">
+        <button type="submit">Match</button>
+      </form>
+      <p class="note" id="note">Drag the point, or paste a brand colour to see frames that sit in it. Hover a frame for its palette.</p>
+    </div>
+    <section class="grid" id="grid" aria-live="polite" aria-label="Frames nearest the chosen colour"></section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+/* Photos and their colour data come from photos.json (built by make_manifest.py). */
+const SHOW = 6;
+
+const hex2rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const css=([r,g,b])=>`rgb(${r|0},${g|0},${b|0})`;
+const clamp=v=>Math.max(0,Math.min(255,v));
+const ycc=([r,g,b])=>{r/=255;g/=255;b/=255;return[.299*r+.587*g+.114*b,-.168736*r-.331264*g+.5*b,.5*r-.418688*g-.081312*b]};
+const fromYcc=(Y,Cb,Cr)=>[Y+1.402*Cr,Y-.344136*Cb-.714136*Cr,Y+1.772*Cb].map(v=>clamp(v*255));
+const ROT=Math.atan2(.5,-.168736), D2R=Math.PI/180;
+const K=3.4;                                   // 2x zoom: film scans sit close to neutral
+const uv=(Cb,Cr)=>[Cb*K,-Cr*K];
+const hexOf=c=>'#'+c.map(v=>Math.round(clamp(v)).toString(16).padStart(2,'0')).join('');
+
+const FRAMES=[];   // filled from photos.json at launch
+const $=id=>document.getElementById(id);
+const scope=$('scope'),puck=$('puck'),trace=$('trace'),grid=$('grid');
+const HOME=[Math.cos(123*D2R)*.22,-Math.sin(123*D2R)*.22];   // start on the skin-tone line
+let P=[...HOME],shown=[],hero=true,HERO=[];
+/* graticule: rings, crosshair, 75% colour targets, skin-tone line */
+function graticule(){
+  let s='';
+  [.25,.5,.75,1].forEach(r=>s+=`<circle class="g" r="${r}"/>`);
+  s+=`<line class="g" x1="-1" x2="1" y1="0" y2="0"/><line class="g" y1="-1" y2="1" x1="0" x2="0"/>`;
+  for(let a=0;a<360;a+=10){const r1=a%30?.97:.94,c=Math.cos(a*D2R),n=-Math.sin(a*D2R);s+=`<line class="g" x1="${(c*r1).toFixed(3)}" y1="${(n*r1).toFixed(3)}" x2="${c.toFixed(3)}" y2="${n.toFixed(3)}"/>`}
+  const sk=[Math.cos(123*D2R),-Math.sin(123*D2R)];s+=`<line class="g-skin" x1="0" y1="0" x2="${sk[0].toFixed(3)}" y2="${sk[1].toFixed(3)}"/>`;
+  [['R',[191,0,0]],['YL',[191,191,0]],['G',[0,191,0]],['CY',[0,191,191]],['B',[0,0,191]],['MG',[191,0,191]]].forEach(([l,rgb])=>{
+    const[,Cb,Cr]=ycc(rgb),[u0,v0]=uv(Cb,Cr),m=Math.hypot(u0,v0),lx=u0/m*.88,ly=v0/m*.88;
+    s+=`<text class="g-t" x="${lx.toFixed(3)}" y="${ly.toFixed(3)}">${l}</text>`});
+  $('grat').innerHTML=s;
+}
+
+/* trace: every pixel of every frame, bright for the frames on screen */
+/* trace drawn into a pixel buffer: a dim base of every frame, plus the frames on screen on top */
+let TB=0,base=null,baseDone=new Set(),tctx=null,timg=null,acc=null;
+function traceIdx(f){if(f.t.idxB===TB)return f.t.idx;const n=f.t.pts.length/2,idx=new Int32Array(n),R=TB/2;
+  for(let j=0;j<n;j++){const x=Math.round(R+f.t.pts[j*2]*R),y=Math.round(R+f.t.pts[j*2+1]*R);idx[j]=(x<0||y<0||x>=TB-1||y>=TB-1)?-1:y*TB+x}
+  f.t.idx=idx;f.t.idxB=TB;return idx}
+function blend(buf,f,a){const idx=traceIdx(f),c=f.t.rgb;
+  for(let j=0;j<idx.length;j++){const i0=idx[j];if(i0<0)continue;const r=c[j*3]*a,g=c[j*3+1]*a,b=c[j*3+2]*a;
+    for(const i of [i0,i0+1,i0+TB,i0+TB+1]){const q=i*4,k=1-a;buf[q]=r+buf[q]*k;buf[q+1]=g+buf[q+1]*k;buf[q+2]=b+buf[q+2]*k;buf[q+3]=a+buf[q+3]*k}}}
+function drawTrace(){
+  const dpr=Math.min(2,devicePixelRatio||1),S=Math.min(560,Math.round(scope.clientWidth*dpr));if(!S)return;
+  if(S!==TB){TB=S;trace.width=trace.height=S;tctx=trace.getContext('2d');timg=tctx.createImageData(S,S);base=new Float32Array(S*S*4);acc=new Float32Array(S*S*4);baseDone=new Set()}
+  for(const f of FRAMES)if(f.t.rgb&&!baseDone.has(f.id)){blend(base,f,.09);baseDone.add(f.id)}
+  acc.set(base);for(const id of shown){const f=FRAMES[id];if(f.t.rgb)blend(acc,f,.7)}
+  const d=timg.data;for(let q=0;q<acc.length;q+=4){const a=acc[q+3];if(a<=0){d[q+3]=0;continue}d[q]=acc[q]/a;d[q+1]=acc[q+1]/a;d[q+2]=acc[q+2]/a;d[q+3]=a*255}
+  tctx.putImageData(timg,0,0);
+}
+
+function nearest(){return FRAMES.filter(f=>f.t.p[0]<9).map(f=>({f,d:Math.hypot(f.t.p[0]-P[0],f.t.p[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,SHOW).map(o=>o.f.id)}
+function render(){
+  puck.style.left=`${50+P[0]*50}%`;puck.style.top=`${50+P[1]*50}%`;
+  const hue=Math.round(((Math.atan2(-P[1],P[0])/D2R)+360)%360),sat=Math.round(Math.hypot(P[0],P[1])*100);
+  $('rh').textContent=String(hue).padStart(3,'0')+'°';$('rs').textContent=String(sat).padStart(2,'0')+'%';
+  const ph=hexOf(fromYcc(.55,P[0]/K,-P[1]/K));$('chip').style.background=brand?brand.hex:ph;if(document.activeElement!==$('hex')&&!brand)$('hex').placeholder=ph;
+  puck.setAttribute('aria-valuetext',`Hue ${hue} degrees, saturation ${sat} percent`);
+  const next=nearest();if(next.join()===shown.join())return;
+  const prev=new Set(shown);shown=next;
+  grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}"><img src="${f.url}" decoding="async" width="520" height="520" alt="Film photograph"><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
+  drawTrace();
+}
+function setFromEvent(e){
+  const b=scope.getBoundingClientRect();let u=(e.clientX-b.left)/b.width*2-1,v=(e.clientY-b.top)/b.height*2-1;
+  const m=Math.hypot(u,v);if(m>1){u/=m;v/=m}P=[u,v];hero=false;clearBrand();render();
+}
+let drag=false;
+function explored(){puck.classList.remove('hint');$('cue').hidden=true}
+scope.addEventListener('pointerdown',e=>{drag=true;explored();scope.setPointerCapture(e.pointerId);setFromEvent(e);puck.focus({preventScroll:true})});
+let pend=null;scope.addEventListener('pointermove',e=>{if(!drag)return;const first=!pend;pend=e;if(first)requestAnimationFrame(()=>{const ev=pend;pend=null;setFromEvent(ev)})});
+scope.addEventListener('pointerup',()=>drag=false);
+scope.addEventListener('pointercancel',()=>drag=false);
+scope.addEventListener('dblclick',()=>{P=[...HOME];hero=true;clearBrand();render()});
+puck.addEventListener('keydown',e=>{const st=e.shiftKey?.08:.02,m={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
+  if(e.key==='Enter'){P=[...HOME];hero=true;render();return}if(!m)return;e.preventDefault();hero=false;explored();let u=P[0]+m[0],v=P[1]+m[1],r=Math.hypot(u,v);if(r>1){u/=r;v/=r}P=[u,v];render()});
+new ResizeObserver(drawTrace).observe(scope);
+
+
+
+/* ---- brand colour match ---- */
+let brand=null;
+function clearBrand(){if(!brand)return;brand=null;$('brand').hidden=true;$('hex').value=''}
+function parseHex(v){v=v.trim().replace(/^#/,'');if(/^[0-9a-f]{3}$/i.test(v))v=v.split('').map(c=>c+c).join('');return /^[0-9a-f]{6}$/i.test(v)?'#'+v.toLowerCase():null}
+$('match').addEventListener('submit',e=>{
+  e.preventDefault();const h=parseHex($('hex').value);
+  if(!h){$('match').dataset.bad='';$('note').textContent='Use a hex code like #800000.';return}
+  delete $('match').dataset.bad;
+  const[,Cb,Cr]=ycc(hex2rgb(h));let[u,v]=uv(Cb,Cr);const m=Math.hypot(u,v);if(m>1){u/=m;v/=m}
+  brand={hex:h};hero=false;explored();P=[u,v];$('hex').value=h;
+  const b=$('brand');b.hidden=false;b.style.background=h;b.style.left=`${50+u*50}%`;b.style.top=`${50+v*50}%`;
+  $('note').textContent=m<.06?`${h} is close to neutral, so this leans on black & white and muted frames.`:`Frames closest to ${h}. Drag to explore around it.`;
+  render();
+});
+$('hex').addEventListener('input',()=>{delete $('match').dataset.bad;const h=parseHex($('hex').value);if(h)$('chip').style.background=h});
+$('hex').addEventListener('paste',()=>setTimeout(()=>{if(parseHex($('hex').value))$('match').requestSubmit()},0));
+
+/* ---- copy a palette colour ---- */
+let tt;function toast(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1600)}
+grid.addEventListener('click',e=>{const b=e.target.closest('.pal button');if(!b)return;const h=b.dataset.hex;
+  try{navigator.clipboard.writeText(h).then(()=>toast('Copied '+h),()=>toast(h))}catch(_){toast(h)}});
+
+$('copymail').addEventListener('click',()=>{const t='gabrielvilnar@gmail.com';
+  const sel=()=>{const r=document.createRange();r.selectNodeContents($('mail'));const g=getSelection();g.removeAllRanges();g.addRange(r);toast('Selected — press Ctrl/Cmd+C')};
+  try{navigator.clipboard.writeText(t).then(()=>toast('Copied '+t),sel)}catch(_){sel()}});
+const ib=$('infobtn'),info=$('info');
+ib.onclick=()=>{info.hidden=!info.hidden;ib.setAttribute('aria-expanded',!info.hidden)};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!info.hidden){info.hidden=true;ib.setAttribute('aria-expanded','false');ib.focus()}});
+document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&&e.target!==ib){info.hidden=true;ib.setAttribute('aria-expanded','false')}});
+
+(async()=>{
+  graticule();render();
+  let list;
+  try{list=await (await fetch('photos.json',{cache:'no-cache'})).json()}
+  catch(_){$('note').textContent='Could not load photos.json.';return}
+  if(!list.length){$('note').textContent='No photos yet.';return}
+  list.forEach((o,id)=>{
+    const bin=atob(o.tr),n=bin.length/3,rgb=new Uint8Array(bin.length),pts=new Float32Array(n*2);
+    for(let j=0;j<bin.length;j++)rgb[j]=bin.charCodeAt(j);
+    for(let j=0;j<n;j++){const[,Cb,Cr]=ycc([rgb[j*3],rgb[j*3+1],rgb[j*3+2]]),[u,v]=uv(Cb,Cr);pts[j*2]=u;pts[j*2+1]=v}
+    FRAMES.push({id,url:encodeURI(o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal}});
+  });
+  render();drawTrace();
+})();
+})();
+</script>
+</body>
+</html>
