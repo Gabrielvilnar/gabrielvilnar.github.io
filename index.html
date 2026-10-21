@@ -83,8 +83,8 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 @media (hover:none){.pal{opacity:1}.pal button{height:10px;padding:0}.pal button span{display:none}}
 
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-content:center;width:100%;max-width:calc((100vh - 140px) * 1.5)}
-.tile{position:relative;aspect-ratio:1;overflow:hidden;background:#fff;padding:5%;margin:0}
-.tile img{width:100%;height:100%;object-fit:contain;display:block}
+.tile{position:relative;aspect-ratio:1;overflow:hidden;background:#fff;margin:0}
+.tile img{position:absolute;inset:5%;width:90%;height:90%;object-fit:contain;display:block}
 .tile.in img{animation:in .45s ease both}
 @keyframes in{from{opacity:0}to{opacity:1}}
 .tile figcaption{position:absolute;left:0;top:0;padding:3px 6px;font-size:11px;background:var(--bg);opacity:0;transition:opacity .15s}
@@ -204,7 +204,7 @@ function render(){
   puck.setAttribute('aria-valuetext',`Hue ${hue} degrees, saturation ${sat} percent`);
   const next=nearest();if(next.join()===shown.join())return;
   const prev=new Set(shown);shown=next;
-  grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}"><img src="${f.url}" decoding="async" width="520" height="520" alt="Film photograph"><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
+  grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}"><img src="${f.url}" decoding="async" width="520" height="520" alt="Photograph"><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
   drawTrace();
 }
 function setFromEvent(e){
