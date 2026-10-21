@@ -280,9 +280,28 @@ let tt;function toast(t){const el=$('toast');el.textContent=t;el.classList.add('
 grid.addEventListener('click',e=>{const b=e.target.closest('.pal button');if(!b)return;const h=b.dataset.hex;
   try{navigator.clipboard.writeText(h).then(()=>toast('Copied '+h),()=>toast(h))}catch(_){toast(h)}});
 
-$('copymail').addEventListener('click',()=>{const t='gabrielvilnar@gmail.com';
-  const sel=()=>{const r=document.createRange();r.selectNodeContents($('mail'));const g=getSelection();g.removeAllRanges();g.addRange(r);toast('Selected — press Ctrl/Cmd+C')};
-  try{navigator.clipboard.writeText(t).then(()=>toast('Copied '+t),sel)}catch(_){sel()}};
+
+  $('copymail').addEventListener('click',()=>{
+  const t='gabrielvilnar@gmail.com';
+  const sel=()=>{
+    const r=document.createRange();
+    r.selectNodeContents($('mail'));
+    const g=getSelection();
+    g.removeAllRanges();
+    g.addRange(r);
+    toast('Selected — press Ctrl/Cmd+C');
+  };
+
+  try {
+    navigator.clipboard.writeText(t).then(
+      ()=>toast('Copied '+t),
+      sel
+    );
+  } catch(_) {
+    sel();
+  }
+});
+
 const ib=$('infobtn'),info=$('info');
 ib.onclick=()=>{info.hidden=!info.hidden;ib.setAttribute('aria-expanded',!info.hidden)};
 
