@@ -73,7 +73,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 .match button:hover{color:var(--ink)}
 .match[data-bad] input{color:var(--accent)}
 .brand{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;box-shadow:0 0 0 1.5px var(--scope),0 0 0 2.5px var(--ink);pointer-events:none}
-.pal{position:absolute;left:0;right:0;bottom:0;display:flex;opacity:0;transition:opacity .15s}
+.pal{position:absolute;left:0;right:0;bottom:0;display:flex;opacity:0;transition:opacity .15s;z-index:2}
 .tile:hover .pal,.tile:focus-within .pal{opacity:1}
 .pal button{flex:1;height:30px;display:flex;align-items:flex-end;padding:0 0 5px 6px;font:400 10px/1 var(--mono);letter-spacing:.02em}
 .pal button span{opacity:0;transition:opacity .15s}
@@ -83,12 +83,19 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 @media (hover:none){.pal{opacity:1}.pal button{height:10px;padding:0}.pal button span{display:none}}
 
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-content:center;width:100%;max-width:calc((100vh - 140px) * 1.5)}
-.tile{position:relative;aspect-ratio:1;overflow:hidden;background:#fff;margin:0}
+.tile{position:relative;aspect-ratio:1;overflow:hidden;background:#fff;margin:0;cursor:pointer}
 .tile img{position:absolute;inset:5%;width:90%;height:90%;object-fit:contain;display:block}
 .tile.in img{animation:in .45s ease both}
 @keyframes in{from{opacity:0}to{opacity:1}}
 .tile figcaption{position:absolute;left:0;top:0;padding:3px 6px;font-size:11px;background:var(--bg);opacity:0;transition:opacity .15s}
 .tile:hover figcaption{opacity:1}
+
+/* --- Blown-up / Zoom Overlay View --- */
+.lightbox{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s ease}
+.lightbox.active{opacity:1;pointer-events:auto}
+.lightbox img{max-width:90vw;max-height:85vh;object-fit:contain;display:block;box-shadow:0 20px 40px rgba(0,0,0,.15)}
+.lightbox .lb-pal{display:flex;gap:4px;margin-top:16px}
+.lightbox .lb-pal button{height:24px;padding:0 8px;font:400 11px/1 var(--mono);border:1px solid var(--line)}
 
 @media (max-width:760px){
   main{display:block}
@@ -143,6 +150,10 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
   </main>
 </div>
 <div class="toast" id="toast" role="status"></div>
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <img id="lb-img" src="" alt="Blown-up photograph">
+  <div class="lb-pal" id="lb-pal"></div>
+</div>
 
 <script>
 (() => {
@@ -161,7 +172,7 @@ const hexOf=c=>'#'+c.map(v=>Math.round(clamp(v)).toString(16).padStart(2,'0')).j
 
 const FRAMES=[];   // filled from photos.json at launch
 const $=id=>document.getElementById(id);
-const scope=$('scope'),puck=$('puck'),trace=$('trace'),grid=$('grid');
+const scope=$('scope'),puck=$('puck'),trace=$('trace'),grid=$('grid'),lightbox=$('lightbox'),lbImg=$('lb-img'),lbPal=$('lb-pal');
 const HOME=[Math.cos(123*D2R)*.22,-Math.sin(123*D2R)*.22];   // start on the skin-tone line
 let P=[...HOME],shown=[],hero=true,HERO=[];
 /* graticule: rings, crosshair, 75% colour targets, skin-tone line */
@@ -204,7 +215,7 @@ function render(){
   puck.setAttribute('aria-valuetext',`Hue ${hue} degrees, saturation ${sat} percent`);
   const next=nearest();if(next.join()===shown.join())return;
   const prev=new Set(shown);shown=next;
-  grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}"><img src="${f.url}" decoding="async" width="520" height="520" alt="Photograph"><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
+  grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}" data-id="${id}"><img src="${f.url}" decoding="async" width="520" height="520" alt="Photograph"><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
   drawTrace();
 }
 function setFromEvent(e){
@@ -222,7 +233,36 @@ puck.addEventListener('keydown',e=>{const st=e.shiftKey?.08:.02,m={ArrowLeft:[-s
   if(e.key==='Enter'){P=[...HOME];hero=true;render();return}if(!m)return;e.preventDefault();hero=false;explored();let u=P[0]+m[0],v=P[1]+m[1],r=Math.hypot(u,v);if(r>1){u/=r;v/=r}P=[u,v];render()});
 new ResizeObserver(drawTrace).observe(scope);
 
+/* ---- photo click-to-zoom (lightbox) ---- */
+grid.addEventListener('click', e => {
+  const palBtn = e.target.closest('.pal button');
+  if (palBtn) return; // let palette copy handler take care of palette buttons
+  const tile = e.target.closest('.tile');
+  if (!tile) return;
+  const f = FRAMES[Number(tile.dataset.id)];
+  if (!f) return;
+  lbImg.src = f.url;
+  lbPal.innerHTML = f.t.pal.map(c => {
+    const h = hexOf(c), lt = ycc(c)[0] > .6;
+    return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}">${h}</button>`;
+  }).join('');
+  lightbox.classList.add('active');
+  lightbox.setAttribute('aria-hidden', 'false');
+});
 
+lightbox.addEventListener('click', e => {
+  // If clicking on the palette button inside lightbox, let copy handler manage it
+  const palBtn = e.target.closest('.lb-pal button');
+  if (palBtn) {
+    const h = palBtn.dataset.hex;
+    try { navigator.clipboard.writeText(h).then(() => toast('Copied ' + h), () => toast(h)); } catch (_) { toast(h); }
+    return;
+  }
+  // Click off photo/box closes it
+  lightbox.classList.remove('active');
+  lightbox.setAttribute('aria-hidden', 'true');
+  lbImg.src = '';
+});
 
 /* ---- brand colour match ---- */
 let brand=null;
@@ -238,8 +278,7 @@ $('match').addEventListener('submit',e=>{
   $('note').textContent=m<.06?`${h} is close to neutral, so this leans on black & white and muted frames.`:`Frames closest to ${h}. Drag to explore around it.`;
   render();
 });
-$('hex').addEventListener('input',()=>{delete $('match').dataset.bad;const h=parseHex($('hex').value);if(h)$('chip').style.background=h});
-$('hex').addEventListener('paste',()=>setTimeout(()=>{if(parseHex($('hex').value))$('match').requestSubmit()},0));
+$('hex').addEventListener('input',()=>{delete $('match').dataset.bad;const h=parseHex($('hex').value);if(h)$('chip').style.background=h});$('hex').addEventListener('paste',()=>setTimeout(()=>{if(parseHex($('hex').value))$('match').requestSubmit()},0));
 
 /* ---- copy a palette colour ---- */
 let tt;function toast(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1600)}
@@ -248,10 +287,17 @@ grid.addEventListener('click',e=>{const b=e.target.closest('.pal button');if(!b)
 
 $('copymail').addEventListener('click',()=>{const t='gabrielvilnar@gmail.com';
   const sel=()=>{const r=document.createRange();r.selectNodeContents($('mail'));const g=getSelection();g.removeAllRanges();g.addRange(r);toast('Selected — press Ctrl/Cmd+C')};
-  try{navigator.clipboard.writeText(t).then(()=>toast('Copied '+t),sel)}catch(_){sel()}});
+  try{navigator.clipboard.writeText(t).then(()=>toast('Copied '+t),sel)}catch(_){sel()}};
 const ib=$('infobtn'),info=$('info');
 ib.onclick=()=>{info.hidden=!info.hidden;ib.setAttribute('aria-expanded',!info.hidden)};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!info.hidden){info.hidden=true;ib.setAttribute('aria-expanded','false');ib.focus()}});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(!lightbox.classList.contains('active')){
+      lightbox.classList.remove('active');lightbox.setAttribute('aria-hidden','true');lbImg.src='';
+    }
+    if(!info.hidden){info.hidden=true;ib.setAttribute('aria-expanded','false');ib.focus()}
+  }
+});
 document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&&e.target!==ib){info.hidden=true;ib.setAttribute('aria-expanded','false')}});
 
 (async()=>{
