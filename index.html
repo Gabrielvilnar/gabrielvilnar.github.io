@@ -14,7 +14,7 @@
 :root{
   --bg:#f7f7f5; --ink:#161615; --mute:#8e8d88; --line:#dcdbd6; --accent:#800000;
   --scope:#e8e7e3; --grat:#d2d0ca; --grat-ink:#aeaba4; --skin:#cbb8a6; --puck:#1a1a19;
-  --mat:#777777; /* 18% grey: the border around each photo */
+  --mat:#e6e6e6; /* off white border */
   --sans:"Geist","Helvetica Neue",Helvetica,Arial,sans-serif;
   --mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
 }
@@ -61,6 +61,12 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 @keyframes pulse{0%{transform:scale(.7);opacity:.9}100%{transform:scale(1.9);opacity:0}}
 .cue{display:none;margin:0;font-size:12px;line-height:1.35;color:var(--ink)}
 .cue b{font-weight:500;color:var(--accent)}
+.modes{display:flex;gap:16px;font:400 12px/1 var(--mono)}
+.modes button{color:var(--mute);padding:3px 0;border-bottom:1px solid transparent}
+.modes button:hover{color:var(--ink)}
+.modes button[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+.modes button:disabled{opacity:.4;cursor:default}
+.readout em{font-style:normal}
 .readout{display:flex;gap:18px;font:400 12px/1 var(--mono);color:var(--mute);font-variant-numeric:tabular-nums}
 .readout b{font-weight:400;color:var(--ink)}
 .match{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:4px 2px}
@@ -100,7 +106,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 @media (max-width:760px){
   main{display:block}
   .left{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;background:var(--bg);display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px 16px;padding-block:8px 12px;margin-bottom:8px;border-bottom:1px solid var(--line)}
-  .left .scope{grid-row:1 / span 3;width:min(40vw,168px)}
+  .left .scope{grid-row:1 / span 4;width:min(40vw,168px)}
   .left .readout{gap:12px;font-size:11px}
   .left .match{padding:2px 0;gap:8px}
   .left .match label{display:none}
@@ -137,8 +143,9 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
         <div class="brand" id="brand" hidden></div>
         <div class="puck hint" id="puck" tabindex="0" role="slider" aria-label="Colour picker. Arrow keys move, Enter resets."></div>
       </div>
+      <div class="modes" id="modes" role="group" aria-label="Mapping mode"><button type="button" data-mode="color" aria-pressed="true">Colour</button><button type="button" data-mode="tone" aria-pressed="false">Tone</button></div>
       <p class="cue" id="cue"><b>Drag the dot</b> to change the photos by colour.</p>
-      <div class="readout"><span>HUE <b id="rh">000°</b></span><span>SAT <b id="rs">00%</b></span></div>
+      <div class="readout"><span><em id="l1">HUE</em> <b id="rh">000°</b></span><span><em id="l2">SAT</em> <b id="rs">00%</b></span></div>
       <form class="match" id="match" autocomplete="off">
         <label for="hex">Brand colour</label><span class="chip" id="chip"></span>
         <input id="hex" name="hex" placeholder="#800000" maxlength="7" spellcheck="false" aria-describedby="note">
@@ -173,9 +180,22 @@ const $=id=>document.getElementById(id);
 const scope=$('scope'),puck=$('puck'),trace=$('trace'),grid=$('grid'),lightbox=$('lightbox'),lbImg=$('lb-img'),lbPal=$('lb-pal');
 const HOME=[Math.cos(123*D2R)*.22,-Math.sin(123*D2R)*.22];
 let P=[...HOME],shown=[],hero=true;
+/* mapping modes: 'color' (hue/saturation) or 'tone' (brightness/contrast, for black & white) */
+let mode='color';const A=.65;  // tone points live in the central +-A square so they stay inside the circle
+let TONE={k0:0,k1:1,c0:0,c1:1};
+const toneUV=(k,c)=>[((k-TONE.k0)/(TONE.k1-TONE.k0)*2-1)*A,-((c-TONE.c0)/(TONE.c1-TONE.c0)*2-1)*A];
+const toneAt=([u,v])=>[TONE.k0+((u/A+1)/2)*(TONE.k1-TONE.k0),TONE.c0+((-v/A+1)/2)*(TONE.c1-TONE.c0)];
+const home=()=>mode==='tone'?[0,0]:[...HOME];
+const pos=f=>mode==='tone'?f.t.q:f.t.p;
 
 function graticule(){
   let s='';
+  if(mode==='tone'){
+    [.25,.5,.75,1].forEach(r=>s+=`<circle class="g" r="${r}"/>`);
+    s+=`<line class="g" x1="-1" x2="1" y1="0" y2="0"/><line class="g" y1="-1" y2="1" x1="0" x2="0"/>`;
+    [['DARK',-.74,-.06],['LIGHT',.74,-.06],['PUNCHY',0,-.88],['FLAT',0,.88]].forEach(([l,x,y])=>s+=`<text class="g-t" x="${x}" y="${y}">${l}</text>`);
+    $('grat').innerHTML=s;return;
+  }
   [.25,.5,.75,1].forEach(r=>s+=`<circle class="g" r="${r}"/>`);
   s+=`<line class="g" x1="-1" x2="1" y1="0" y2="0"/><line class="g" y1="-1" y2="1" x1="0" x2="0"/>`;
   for(let a=0;a<360;a+=10){const r1=a%30?.97:.94,c=Math.cos(a*D2R),n=-Math.sin(a*D2R);s+=`<line class="g" x1="${(c*r1).toFixed(3)}" y1="${(n*r1).toFixed(3)}" x2="${c.toFixed(3)}" y2="${n.toFixed(3)}"/>`}
@@ -193,22 +213,39 @@ function traceIdx(f){if(f.t.idxB===TB)return f.t.idx;const n=f.t.pts.length/2,id
 function blend(buf,f,a){const idx=traceIdx(f),c=f.t.rgb;
   for(let j=0;j<idx.length;j++){const i0=idx[j];if(i0<0)continue;const r=c[j*3]*a,g=c[j*3+1]*a,b=c[j*3+2]*a;
     for(const i of [i0,i0+1,i0+TB,i0+TB+1]){const q=i*4,k=1-a;buf[q]=r+buf[q]*k;buf[q+1]=g+buf[q+1]*k;buf[q+2]=b+buf[q+2]*k;buf[q+3]=a+buf[q+3]*k}}}
+function drawTone(dpr){
+  const R=TB/2,ink=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()||'#888';
+  tctx.clearRect(0,0,TB,TB);tctx.strokeStyle=ink;tctx.lineWidth=dpr;
+  const dot=(f,r,a)=>{const q=f.t.q;if(!q)return;const g=Math.round(f.t.k*255);
+    tctx.globalAlpha=a;tctx.fillStyle=`rgb(${g},${g},${g})`;tctx.beginPath();tctx.arc(R+q[0]*R,R+q[1]*R,r,0,6.2832);tctx.fill();
+    tctx.globalAlpha=a*.4;tctx.stroke()};
+  for(const f of FRAMES)dot(f,2.6*dpr,.55);
+  for(const id of shown)dot(FRAMES[id],5*dpr,1);
+  tctx.globalAlpha=1;
+}
 function drawTrace(){
   const dpr=Math.min(2,devicePixelRatio||1),S=Math.min(560,Math.round(scope.clientWidth*dpr));if(!S)return;
   if(S!==TB){TB=S;trace.width=trace.height=S;tctx=trace.getContext('2d');timg=tctx.createImageData(S,S);base=new Float32Array(S*S*4);acc=new Float32Array(S*S*4);baseDone=new Set()}
+  if(mode==='tone'){drawTone(S/scope.clientWidth);return}
   for(const f of FRAMES)if(f.t.rgb&&!baseDone.has(f.id)){blend(base,f,.09);baseDone.add(f.id)}
   acc.set(base);for(const id of shown){const f=FRAMES[id];if(f.t.rgb)blend(acc,f,.7)}
   const d=timg.data;for(let q=0;q<acc.length;q+=4){const a=acc[q+3];if(a<=0){d[q+3]=0;continue}d[q]=acc[q]/a;d[q+1]=acc[q+1]/a;d[q+2]=acc[q+2]/a;d[q+3]=a*255}
   tctx.putImageData(timg,0,0);
 }
 
-function nearest(){return FRAMES.filter(f=>f.t.p[0]<9).map(f=>({f,d:Math.hypot(f.t.p[0]-P[0],f.t.p[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,SHOW).map(o=>o.f.id)}
+function nearest(){return FRAMES.filter(f=>pos(f)).map(f=>({f,d:Math.hypot(pos(f)[0]-P[0],pos(f)[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,SHOW).map(o=>o.f.id)}
 function render(){
   puck.style.left=`${50+P[0]*50}%`;puck.style.top=`${50+P[1]*50}%`;
-  const hue=Math.round(((Math.atan2(-P[1],P[0])/D2R)+360)%360),sat=Math.round(Math.hypot(P[0],P[1])*100);
-  $('rh').textContent=String(hue).padStart(3,'0')+'°';$('rs').textContent=String(sat).padStart(2,'0')+'%';
-  const ph=hexOf(fromYcc(.55,P[0]/K,-P[1]/K));$('chip').style.background=brand?brand.hex:ph;if(document.activeElement!==$('hex')&&!brand)$('hex').placeholder=ph;
-  puck.setAttribute('aria-valuetext',`Hue ${hue} degrees, saturation ${sat} percent`);
+  if(mode==='tone'){
+    const[k,c]=toneAt(P),pc=v=>String(Math.round(Math.max(0,Math.min(1,v))*100)).padStart(2,'0')+'%';
+    $('rh').textContent=pc(k);$('rs').textContent=pc(c);
+    puck.setAttribute('aria-valuetext',`Brightness ${pc(k)}, contrast ${pc(c)}`);
+  }else{
+    const hue=Math.round(((Math.atan2(-P[1],P[0])/D2R)+360)%360),sat=Math.round(Math.hypot(P[0],P[1])*100);
+    $('rh').textContent=String(hue).padStart(3,'0')+'°';$('rs').textContent=String(sat).padStart(2,'0')+'%';
+    const ph=hexOf(fromYcc(.55,P[0]/K,-P[1]/K));$('chip').style.background=brand?brand.hex:ph;if(document.activeElement!==$('hex')&&!brand)$('hex').placeholder=ph;
+    puck.setAttribute('aria-valuetext',`Hue ${hue} degrees, saturation ${sat} percent`);
+  }
   const next=nearest();if(next.join()===shown.join())return;
   const prev=new Set(shown);shown=next;
   grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}" data-id="${id}"><div class="mat"><img src="${f.url}" loading="lazy" decoding="async" width="520" height="520" alt="Photograph" onerror="console.warn('Missing image:',this.src)"></div><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
@@ -224,9 +261,9 @@ scope.addEventListener('pointerdown',e=>{drag=true;explored();scope.setPointerCa
 let pend=null;scope.addEventListener('pointermove',e=>{if(!drag)return;const first=!pend;pend=e;if(first)requestAnimationFrame(()=>{const ev=pend;pend=null;setFromEvent(ev)})});
 scope.addEventListener('pointerup',()=>drag=false);
 scope.addEventListener('pointercancel',()=>drag=false);
-scope.addEventListener('dblclick',()=>{P=[...HOME];hero=true;clearBrand();render()});
+scope.addEventListener('dblclick',()=>{P=home();hero=true;clearBrand();render()});
 puck.addEventListener('keydown',e=>{const st=e.shiftKey?.08:.02,m={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
-  if(e.key==='Enter'){P=[...HOME];hero=true;render();return}if(!m)return;e.preventDefault();hero=false;explored();let u=P[0]+m[0],v=P[1]+m[1],r=Math.hypot(u,v);if(r>1){u/=r;v/=r}P=[u,v];render()});
+  if(e.key==='Enter'){P=home();hero=true;render();return}if(!m)return;e.preventDefault();hero=false;explored();let u=P[0]+m[0],v=P[1]+m[1],r=Math.hypot(u,v);if(r>1){u/=r;v/=r}P=[u,v];render()});
 new ResizeObserver(drawTrace).observe(scope);
 
 /* ---- click-to-zoom: shows the gallery image at once, swaps in the full-size one when it has loaded ---- */
@@ -251,6 +288,19 @@ lightbox.addEventListener('click',e=>{
   if(b){const h=b.dataset.hex;try{navigator.clipboard.writeText(h).then(()=>toast('Copied '+h),()=>toast(h))}catch(_){toast(h)}return}
   if(e.target===lightbox)closeLightbox();   // background only: clicking the photo itself keeps it open
 });
+
+/* ---- mapping mode ---- */
+const NOTES={color:'Drag the point, or paste a brand colour to see frames that sit in it. Hover a frame for its palette.',
+  tone:'Drag the point: dark to light across, flat to punchy up and down. Hover a frame for its palette.'};
+function setMode(m){
+  if(m===mode)return;mode=m;clearBrand();
+  document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
+  $('match').hidden=m==='tone';$('note').textContent=NOTES[m];
+  $('cue').innerHTML=`<b>Drag the dot</b> to change the photos by ${m==='tone'?'tone':'colour'}.`;
+  $('l1').textContent=m==='tone'?'KEY':'HUE';$('l2').textContent=m==='tone'?'CONTRAST':'SAT';
+  P=home();hero=true;graticule();render();drawTrace();
+}
+$('modes').addEventListener('click',e=>{const b=e.target.closest('button[data-mode]');if(b&&!b.disabled)setMode(b.dataset.mode)});
 
 /* ---- brand colour match ---- */
 let brand=null;
@@ -301,8 +351,15 @@ document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&
     for(let j=0;j<n;j++){const[,Cb,Cr]=ycc([rgb[j*3],rgb[j*3+1],rgb[j*3+2]]),[u,v]=uv(Cb,Cr);pts[j*2]=u;pts[j*2+1]=v}
     /* gallery uses thumb (or src); zoom uses full (or falls back to the same low-res file) */
     const url=encodeURI(o.thumb||o.src);
-    FRAMES.push({id,url,fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal}});
+    FRAMES.push({id,url,fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal,k:o.k,c:o.c}});
   });
+  /* tone mode: fit the key/contrast axes to this collection so photos spread across the scope */
+  const T=FRAMES.filter(f=>f.t.k!=null);
+  if(T.length){
+    const rng=(vals)=>{let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<.05){const m=(lo+hi)/2;lo=m-.025;hi=m+.025}return[lo,hi]};
+    const[k0,k1]=rng(T.map(f=>f.t.k)),[c0,c1]=rng(T.map(f=>f.t.c));TONE={k0,k1,c0,c1};
+    T.forEach(f=>f.t.q=toneUV(f.t.k,f.t.c));
+  }else{const tb=document.querySelector('#modes [data-mode="tone"]');tb.disabled=true;tb.title='Re-run make_manifest.py to enable'}
   render();drawTrace();
 })();
 })();

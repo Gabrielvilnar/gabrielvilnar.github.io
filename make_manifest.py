@@ -16,7 +16,7 @@ import base64, hashlib, json, pathlib
 from PIL import Image, ImageOps
 
 EXT = {".webp", ".jpg", ".jpeg", ".png", ".avif"}
-VERSION = 1            # bump to force re-analysis of everything
+VERSION = 2            # bump to force re-analysis of everything
 K = 3.4                # scope zoom (must match index.html)
 AW, AH = 80, 53        # size used for position / brightness / palette
 TW, TH = 40, 27        # size of the pixel sample used to draw the trace
@@ -50,14 +50,19 @@ def analyse(path):
     raw = im.resize((AW, AH), Image.BOX).tobytes()
     px = list(zip(raw[0::3], raw[1::3], raw[2::3]))
     sb = sr = sk = sy = 0.0
+    ys = []
     for r, g, b in px:
         Y, Cb, Cr = ycc(r, g, b)
+        ys.append(Y)
         k = (Cb * Cb + Cr * Cr) ** .5
         sy += Y; sb += Cb * k; sr += Cr * k; sk += k
     n = len(px)
     p = [0, 0] if sk / n < .02 else [round(sb / sk * K, 4), round(-sr / sk * K, 4)]
     trace = base64.b64encode(im.resize((TW, TH), Image.BOX).tobytes()).decode()
-    return {"p": p, "y": round(sy / n, 4), "pal": palette(px), "tr": trace}
+    ys.sort()
+    contrast = ys[int(.95 * (n - 1))] - ys[int(.05 * (n - 1))]   # spread of the middle 90% of tones
+    return {"p": p, "y": round(sy / n, 4), "k": round(sy / n, 4), "c": round(contrast, 4),
+            "pal": palette(px), "tr": trace}
 
 
 old = {}
