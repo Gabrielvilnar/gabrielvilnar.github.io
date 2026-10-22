@@ -14,6 +14,7 @@
 :root{
   --bg:#f7f7f5; --ink:#161615; --mute:#8e8d88; --line:#dcdbd6; --accent:#800000;
   --scope:#e8e7e3; --grat:#d2d0ca; --grat-ink:#aeaba4; --skin:#cbb8a6; --puck:#1a1a19;
+  --mat:#777777; /* 18% grey: the border around each photo */
   --sans:"Geist","Helvetica Neue",Helvetica,Arial,sans-serif;
   --mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
 }
@@ -51,7 +52,6 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 .scope canvas,.scope svg{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;pointer-events:none}
 .g{fill:none;stroke:var(--grat);stroke-width:.004}
 .g-skin{stroke:var(--skin);stroke-width:.004;stroke-dasharray:.02 .015}
-.g-box{fill:none;stroke:var(--grat-ink);stroke-width:.005}
 .g-t{fill:var(--grat-ink);font:400 .042px var(--mono);text-anchor:middle;dominant-baseline:central;letter-spacing:.004px}
 .puck{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:1.5px solid var(--puck);box-shadow:0 0 0 1px var(--scope),inset 0 0 0 1px var(--scope);cursor:grab;touch-action:none}
 .puck::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--puck)}
@@ -80,17 +80,17 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 .pal button:hover span,.pal button:focus-visible span{opacity:1}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);background:var(--ink);color:var(--bg);padding:7px 12px;font:400 12px/1 var(--mono);opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:10}
 .toast.on{opacity:1;transform:translate(-50%,0)}
-@media (hover:none){.pal{opacity:1}.pal button{height:10px;padding:0}.pal button span{display:none}}
+/* touch screens: palette is always visible, as a strip BELOW the grey mat (not over it) */
+@media (hover:none){.pal{position:static;opacity:1}.pal button{height:10px;padding:0}.pal button span{display:none}}
 
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-content:center;width:100%;max-width:calc((100vh - 140px) * 1.5)}
-.tile{position:relative;aspect-ratio:1;overflow:hidden;background:#fff;margin:0;cursor:pointer}
-.tile img{position:absolute;inset:5%;width:90%;height:90%;object-fit:contain;display:block}
+.tile{position:relative;overflow:hidden;margin:0;cursor:pointer}
+.mat{position:relative;aspect-ratio:1;background:var(--mat)}
+.mat img{position:absolute;inset:5%;width:90%;height:90%;object-fit:contain;display:block}
 .tile.in img{animation:in .45s ease both}
 @keyframes in{from{opacity:0}to{opacity:1}}
-.tile figcaption{position:absolute;left:0;top:0;padding:3px 6px;font-size:11px;background:var(--bg);opacity:0;transition:opacity .15s}
-.tile:hover figcaption{opacity:1}
 
-/* --- Blown-up / Zoom Overlay View --- */
+/* click-to-zoom overlay */
 .lightbox{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s ease}
 .lightbox.active{opacity:1;pointer-events:auto}
 .lightbox img{max-width:90vw;max-height:85vh;object-fit:contain;display:block;box-shadow:0 20px 40px rgba(0,0,0,.15)}
@@ -151,7 +151,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 </div>
 <div class="toast" id="toast" role="status"></div>
 <div class="lightbox" id="lightbox" aria-hidden="true">
-  <img id="lb-img" src="" alt="Blown-up photograph">
+  <img id="lb-img" alt="Enlarged photograph">
   <div class="lb-pal" id="lb-pal"></div>
 </div>
 
@@ -160,11 +160,10 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 const SHOW = 6;
 
 const hex2rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
-const css=([r,g,b])=>`rgb(${r|0},${g|0},${b|0})`;
 const clamp=v=>Math.max(0,Math.min(255,v));
 const ycc=([r,g,b])=>{r/=255;g/=255;b/=255;return[.299*r+.587*g+.114*b,-.168736*r-.331264*g+.5*b,.5*r-.418688*g-.081312*b]};
 const fromYcc=(Y,Cb,Cr)=>[Y+1.402*Cr,Y-.344136*Cb-.714136*Cr,Y+1.772*Cb].map(v=>clamp(v*255));
-const ROT=Math.atan2(.5,-.168736), D2R=Math.PI/180;
+const D2R=Math.PI/180;
 const K=3.4;
 const uv=(Cb,Cr)=>[Cb*K,-Cr*K];
 const hexOf=c=>'#'+c.map(v=>Math.round(clamp(v)).toString(16).padStart(2,'0')).join('');
@@ -173,7 +172,7 @@ const FRAMES=[];
 const $=id=>document.getElementById(id);
 const scope=$('scope'),puck=$('puck'),trace=$('trace'),grid=$('grid'),lightbox=$('lightbox'),lbImg=$('lb-img'),lbPal=$('lb-pal');
 const HOME=[Math.cos(123*D2R)*.22,-Math.sin(123*D2R)*.22];
-let P=[...HOME],shown=[],hero=true,HERO=[];
+let P=[...HOME],shown=[],hero=true;
 
 function graticule(){
   let s='';
@@ -212,7 +211,7 @@ function render(){
   puck.setAttribute('aria-valuetext',`Hue ${hue} degrees, saturation ${sat} percent`);
   const next=nearest();if(next.join()===shown.join())return;
   const prev=new Set(shown);shown=next;
-  grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}" data-id="${id}"><img src="${f.url}" decoding="async" width="520" height="520" alt="Photograph"><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
+  grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}" data-id="${id}"><div class="mat"><img src="${f.url}" loading="lazy" decoding="async" width="520" height="520" alt="Photograph" onerror="console.warn('Missing image:',this.src)"></div><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
   drawTrace();
 }
 function setFromEvent(e){
@@ -230,33 +229,27 @@ puck.addEventListener('keydown',e=>{const st=e.shiftKey?.08:.02,m={ArrowLeft:[-s
   if(e.key==='Enter'){P=[...HOME];hero=true;render();return}if(!m)return;e.preventDefault();hero=false;explored();let u=P[0]+m[0],v=P[1]+m[1],r=Math.hypot(u,v);if(r>1){u/=r;v/=r}P=[u,v];render()});
 new ResizeObserver(drawTrace).observe(scope);
 
-/* ---- photo click-to-zoom (lightbox) ---- */
-grid.addEventListener('click', e => {
-  const palBtn = e.target.closest('.pal button');
-  if (palBtn) return;
-  const tile = e.target.closest('.tile');
-  if (!tile) return;
-  const f = FRAMES[Number(tile.dataset.id)];
-  if (!f) return;
-  lbImg.src = f.url;
-  lbPal.innerHTML = f.t.pal.map(c => {
-    const h = hexOf(c), lt = ycc(c)[0] > .6;
-    return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}">${h}</button>`;
-  }).join('');
-  lightbox.classList.add('active');
-  lightbox.setAttribute('aria-hidden', 'false');
+/* ---- click-to-zoom: shows the gallery image at once, swaps in the full-size one when it has loaded ---- */
+let lbCur=null;
+function openLightbox(f){
+  lbCur=f;lbImg.src=f.url;
+  lbPal.innerHTML=f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}">${h}</button>`}).join('');
+  lightbox.classList.add('active');lightbox.setAttribute('aria-hidden','false');
+  if(f.fullUrl!==f.url){const im=new Image();
+    im.onload=()=>{if(lbCur===f)lbImg.src=f.fullUrl};
+    im.onerror=()=>console.warn('Full-size image not found, keeping gallery version:',f.fullUrl);
+    im.src=f.fullUrl}
+}
+function closeLightbox(){lbCur=null;lightbox.classList.remove('active');lightbox.setAttribute('aria-hidden','true')}
+grid.addEventListener('click',e=>{
+  if(e.target.closest('.pal button'))return;
+  const tile=e.target.closest('.tile');if(!tile)return;
+  const f=FRAMES[Number(tile.dataset.id)];if(f)openLightbox(f);
 });
-
-lightbox.addEventListener('click', e => {
-  const palBtn = e.target.closest('.lb-pal button');
-  if (palBtn) {
-    const h = palBtn.dataset.hex;
-    try { navigator.clipboard.writeText(h).then(() => toast('Copied ' + h), () => toast(h)); } catch (_) { toast(h); }
-    return;
-  }
-  lightbox.classList.remove('active');
-  lightbox.setAttribute('aria-hidden', 'true');
-  lbImg.src = '';
+lightbox.addEventListener('click',e=>{
+  const b=e.target.closest('.lb-pal button');
+  if(b){const h=b.dataset.hex;try{navigator.clipboard.writeText(h).then(()=>toast('Copied '+h),()=>toast(h))}catch(_){toast(h)}return}
+  if(e.target===lightbox)closeLightbox();   // background only: clicking the photo itself keeps it open
 });
 
 /* ---- brand colour match ---- */
@@ -273,52 +266,27 @@ $('match').addEventListener('submit',e=>{
   $('note').textContent=m<.06?`${h} is close to neutral, so this leans on black & white and muted frames.`:`Frames closest to ${h}. Drag to explore around it.`;
   render();
 });
-$('hex').addEventListener('input',()=>{delete $('match').dataset.bad;const h=parseHex($('hex').value);if(h)$('chip').style.background=h});$('hex').addEventListener('paste',()=>setTimeout(()=>{if(parseHex($('hex').value))$('match').requestSubmit()},0));
+$('hex').addEventListener('input',()=>{delete $('match').dataset.bad;const h=parseHex($('hex').value);if(h)$('chip').style.background=h});
+$('hex').addEventListener('paste',()=>setTimeout(()=>{if(parseHex($('hex').value))$('match').requestSubmit()},0));
 
 /* ---- copy a palette colour ---- */
 let tt;function toast(t){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),1600)}
 grid.addEventListener('click',e=>{const b=e.target.closest('.pal button');if(!b)return;const h=b.dataset.hex;
   try{navigator.clipboard.writeText(h).then(()=>toast('Copied '+h),()=>toast(h))}catch(_){toast(h)}});
 
-
-  $('copymail').addEventListener('click',()=>{
+$('copymail').addEventListener('click',()=>{
   const t='gabrielvilnar@gmail.com';
-  const sel=()=>{
-    const r=document.createRange();
-    r.selectNodeContents($('mail'));
-    const g=getSelection();
-    g.removeAllRanges();
-    g.addRange(r);
-    toast('Selected — press Ctrl/Cmd+C');
-  };
-
-  try {
-    navigator.clipboard.writeText(t).then(
-      ()=>toast('Copied '+t),
-      sel
-    );
-  } catch(_) {
-    sel();
-  }
+  const sel=()=>{const r=document.createRange();r.selectNodeContents($('mail'));const g=getSelection();g.removeAllRanges();g.addRange(r);toast('Selected — press Ctrl/Cmd+C')};
+  try{navigator.clipboard.writeText(t).then(()=>toast('Copied '+t),sel)}catch(_){sel()}
 });
 
 const ib=$('infobtn'),info=$('info');
 ib.onclick=()=>{info.hidden=!info.hidden;ib.setAttribute('aria-expanded',!info.hidden)};
-
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){
-    if(lightbox.classList.contains('active')){
-      lightbox.classList.remove('active');
-      lightbox.setAttribute('aria-hidden','true');
-      lbImg.src='';
-    } else if(!info.hidden){
-      info.hidden=true;
-      ib.setAttribute('aria-expanded','false');
-      ib.focus();
-    }
-  }
+  if(e.key!=='Escape')return;
+  if(lightbox.classList.contains('active'))closeLightbox();
+  else if(!info.hidden){info.hidden=true;ib.setAttribute('aria-expanded','false');ib.focus()}
 });
-
 document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&&e.target!==ib){info.hidden=true;ib.setAttribute('aria-expanded','false')}});
 
 (async()=>{
@@ -331,7 +299,9 @@ document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&
     const bin=atob(o.tr),n=bin.length/3,rgb=new Uint8Array(bin.length),pts=new Float32Array(n*2);
     for(let j=0;j<bin.length;j++)rgb[j]=bin.charCodeAt(j);
     for(let j=0;j<n;j++){const[,Cb,Cr]=ycc([rgb[j*3],rgb[j*3+1],rgb[j*3+2]]),[u,v]=uv(Cb,Cr);pts[j*2]=u;pts[j*2+1]=v}
-    FRAMES.push({id,url:encodeURI(o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal}});
+    /* gallery uses thumb (or src); zoom uses full (or falls back to the same low-res file) */
+    const url=encodeURI(o.thumb||o.src);
+    FRAMES.push({id,url,fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal}});
   });
   render();drawTrace();
 })();

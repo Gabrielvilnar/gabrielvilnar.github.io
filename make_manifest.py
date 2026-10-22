@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Analyse every photo in images/ and write photos.json.
 
+Optional high-res versions: put a copy with the same name in images/full/
+(e.g. images/IMG_01.jpg + images/full/IMG_01.jpg). The gallery uses the
+file in images/; clicking a photo loads the one in images/full/ if it exists.
+
 For each photo this stores its position on the colour scope, brightness,
 a 5-colour palette and a small pixel sample for the scope trace, so the
 page never has to download full images just to analyse them.
@@ -64,7 +68,10 @@ if out.exists():
         pass
 
 entries, done = [], 0
-files = sorted(p for p in (root / "images").rglob("*") if p.suffix.lower() in EXT)
+FULL = root / "images" / "full"   # optional high-res copies, same name as the gallery photo
+fulls = {p.stem.lower(): p for p in FULL.glob("*") if p.suffix.lower() in EXT} if FULL.exists() else {}
+files = sorted(p for p in (root / "images").rglob("*")
+               if p.suffix.lower() in EXT and FULL not in p.parents)
 for f in files:
     src = f.relative_to(root).as_posix()
     h = hashlib.md5(f.read_bytes()).hexdigest()[:10]
@@ -76,7 +83,11 @@ for f in files:
             print(f"skipped {src}: {ex}")
             continue
         done += 1
+    full = fulls.get(f.stem.lower())
+    e = {k: v for k, v in e.items() if k != "full"}
+    if full:
+        e["full"] = full.relative_to(root).as_posix()
     entries.append(e)
 
 out.write_text("[\n" + ",\n".join(json.dumps(e, separators=(",", ":")) for e in entries) + "\n]\n")
-print(f"photos.json: {len(entries)} photos ({done} analysed, {len(entries) - done} reused)")
+print(f"photos.json: {len(entries)} photos, {sum('full' in e for e in entries)} with a full-size version ({done} analysed, {len(entries) - done} reused)")
