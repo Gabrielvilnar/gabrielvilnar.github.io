@@ -14,7 +14,7 @@
 :root{
   --bg:#f7f7f5; --ink:#161615; --mute:#8e8d88; --line:#dcdbd6; --accent:#800000;
   --scope:#e8e7e3; --grat:#d2d0ca; --grat-ink:#aeaba4; --skin:#cbb8a6; --puck:#1a1a19;
-  --mat:#e6e6e6; /* off white border */
+  --mat:#cccccc; /* 18% grey: the border around each photo */
   --sans:"Geist","Helvetica Neue",Helvetica,Arial,sans-serif;
   --mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
 }
@@ -50,6 +50,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 .scope{position:relative;width:min(100%,52vh,440px);aspect-ratio:1;max-width:100%;border-radius:50%;background:var(--scope);touch-action:none;cursor:crosshair;user-select:none}
 .scope canvas{image-rendering:auto}
 .scope canvas,.scope svg{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;pointer-events:none}
+.scope.sq,.scope.sq canvas,.scope.sq svg{border-radius:0}
 .g{fill:none;stroke:var(--grat);stroke-width:.004}
 .g-skin{stroke:var(--skin);stroke-width:.004;stroke-dasharray:.02 .015}
 .g-t{fill:var(--grat-ink);font:400 .042px var(--mono);text-anchor:middle;dominant-baseline:central;letter-spacing:.004px}
@@ -143,7 +144,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
         <div class="brand" id="brand" hidden></div>
         <div class="puck hint" id="puck" tabindex="0" role="slider" aria-label="Colour picker. Arrow keys move, Enter resets."></div>
       </div>
-      <div class="modes" id="modes" role="group" aria-label="Mapping mode"><button type="button" data-mode="color" aria-pressed="true">Colour</button><button type="button" data-mode="tone" aria-pressed="false">Tone</button></div>
+      <div class="modes" id="modes" role="group" aria-label="Mapping mode"><button type="button" data-mode="color" aria-pressed="true">Colour</button><button type="button" data-mode="tone" aria-pressed="false">Tone</button><button type="button" data-mode="light" aria-pressed="false">Light</button></div>
       <p class="cue" id="cue"><b>Drag the dot</b> to change the photos by colour.</p>
       <div class="readout"><span><em id="l1">HUE</em> <b id="rh">000°</b></span><span><em id="l2">SAT</em> <b id="rs">00%</b></span></div>
       <form class="match" id="match" autocomplete="off">
@@ -180,20 +181,26 @@ const $=id=>document.getElementById(id);
 const scope=$('scope'),puck=$('puck'),trace=$('trace'),grid=$('grid'),lightbox=$('lightbox'),lbImg=$('lb-img'),lbPal=$('lb-pal');
 const HOME=[Math.cos(123*D2R)*.22,-Math.sin(123*D2R)*.22];
 let P=[...HOME],shown=[],hero=true;
-/* mapping modes: 'color' (hue/saturation) or 'tone' (brightness/contrast, for black & white) */
-let mode='color';const A=.65;  // tone points live in the central +-A square so they stay inside the circle
-let TONE={k0:0,k1:1,c0:0,c1:1};
-const toneUV=(k,c)=>[((k-TONE.k0)/(TONE.k1-TONE.k0)*2-1)*A,-((c-TONE.c0)/(TONE.c1-TONE.c0)*2-1)*A];
-const toneAt=([u,v])=>[TONE.k0+((u/A+1)/2)*(TONE.k1-TONE.k0),TONE.c0+((-v/A+1)/2)*(TONE.c1-TONE.c0)];
-const home=()=>mode==='tone'?[0,0]:[...HOME];
-const pos=f=>mode==='tone'?f.t.q:f.t.p;
+/* mapping modes: 'color' (hue/saturation, circular scope), 'tone' (brightness/contrast) and 'light' (where the light sits in the frame); tone and light use a square scope */
+let mode='color';const A=.78;
+let TONE={k0:0,k1:1,c0:0,c1:1},LIGHT={x0:0,x1:1,y0:0,y1:1};
+const nz=(v,a,b)=>((v-a)/(b-a)*2-1)*A,dz=(w,a,b)=>a+((w/A+1)/2)*(b-a);
+const toneUV=(k,c)=>[nz(k,TONE.k0,TONE.k1),-nz(c,TONE.c0,TONE.c1)];
+const toneAt=([u,v])=>[dz(u,TONE.k0,TONE.k1),dz(-v,TONE.c0,TONE.c1)];
+const lightUV=(x,y)=>[nz(x,LIGHT.x0,LIGHT.x1),nz(y,LIGHT.y0,LIGHT.y1)];
+const lightAt=([u,v])=>[dz(u,LIGHT.x0,LIGHT.x1),dz(v,LIGHT.y0,LIGHT.y1)];
+const home=()=>mode==='color'?[...HOME]:[0,0];
+const pos=f=>mode==='tone'?f.t.q:mode==='light'?f.t.l:f.t.p;
+const clampP=(u,v)=>{if(mode!=='color')return[Math.max(-1,Math.min(1,u)),Math.max(-1,Math.min(1,v))];const m=Math.hypot(u,v);return m>1?[u/m,v/m]:[u,v]};
 
 function graticule(){
   let s='';
-  if(mode==='tone'){
-    [.25,.5,.75,1].forEach(r=>s+=`<circle class="g" r="${r}"/>`);
+  if(mode!=='color'){
+    s+=`<rect class="g" x="-1" y="-1" width="2" height="2"/>`;
+    [-.5,.5].forEach(t=>s+=`<line class="g" x1="${t}" x2="${t}" y1="-1" y2="1"/><line class="g" y1="${t}" y2="${t}" x1="-1" x2="1"/>`);
     s+=`<line class="g" x1="-1" x2="1" y1="0" y2="0"/><line class="g" y1="-1" y2="1" x1="0" x2="0"/>`;
-    [['DARK',-.74,-.06],['LIGHT',.74,-.06],['PUNCHY',0,-.88],['FLAT',0,.88]].forEach(([l,x,y])=>s+=`<text class="g-t" x="${x}" y="${y}">${l}</text>`);
+    const L=mode==='tone'?['DARK','LIGHT','PUNCHY','FLAT']:['LEFT','RIGHT','TOP','BOTTOM'];
+    [[L[0],-.87,-.06],[L[1],.87,-.06],[L[2],0,-.95],[L[3],0,.95]].forEach(([l,x,y])=>s+=`<text class="g-t" x="${x}" y="${y}">${l}</text>`);
     $('grat').innerHTML=s;return;
   }
   [.25,.5,.75,1].forEach(r=>s+=`<circle class="g" r="${r}"/>`);
@@ -216,7 +223,7 @@ function blend(buf,f,a){const idx=traceIdx(f),c=f.t.rgb;
 function drawTone(dpr){
   const R=TB/2,ink=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()||'#888';
   tctx.clearRect(0,0,TB,TB);tctx.strokeStyle=ink;tctx.lineWidth=dpr;
-  const dot=(f,r,a)=>{const q=f.t.q;if(!q)return;const g=Math.round(f.t.k*255);
+  const dot=(f,r,a)=>{const q=pos(f);if(!q)return;const g=Math.round(f.t.k*255);
     tctx.globalAlpha=a;tctx.fillStyle=`rgb(${g},${g},${g})`;tctx.beginPath();tctx.arc(R+q[0]*R,R+q[1]*R,r,0,6.2832);tctx.fill();
     tctx.globalAlpha=a*.4;tctx.stroke()};
   for(const f of FRAMES)dot(f,2.6*dpr,.55);
@@ -226,7 +233,7 @@ function drawTone(dpr){
 function drawTrace(){
   const dpr=Math.min(2,devicePixelRatio||1),S=Math.min(560,Math.round(scope.clientWidth*dpr));if(!S)return;
   if(S!==TB){TB=S;trace.width=trace.height=S;tctx=trace.getContext('2d');timg=tctx.createImageData(S,S);base=new Float32Array(S*S*4);acc=new Float32Array(S*S*4);baseDone=new Set()}
-  if(mode==='tone'){drawTone(S/scope.clientWidth);return}
+  if(mode!=='color'){drawTone(S/scope.clientWidth);return}
   for(const f of FRAMES)if(f.t.rgb&&!baseDone.has(f.id)){blend(base,f,.09);baseDone.add(f.id)}
   acc.set(base);for(const id of shown){const f=FRAMES[id];if(f.t.rgb)blend(acc,f,.7)}
   const d=timg.data;for(let q=0;q<acc.length;q+=4){const a=acc[q+3];if(a<=0){d[q+3]=0;continue}d[q]=acc[q]/a;d[q+1]=acc[q+1]/a;d[q+2]=acc[q+2]/a;d[q+3]=a*255}
@@ -236,10 +243,10 @@ function drawTrace(){
 function nearest(){return FRAMES.filter(f=>pos(f)).map(f=>({f,d:Math.hypot(pos(f)[0]-P[0],pos(f)[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,SHOW).map(o=>o.f.id)}
 function render(){
   puck.style.left=`${50+P[0]*50}%`;puck.style.top=`${50+P[1]*50}%`;
-  if(mode==='tone'){
-    const[k,c]=toneAt(P),pc=v=>String(Math.round(Math.max(0,Math.min(1,v))*100)).padStart(2,'0')+'%';
-    $('rh').textContent=pc(k);$('rs').textContent=pc(c);
-    puck.setAttribute('aria-valuetext',`Brightness ${pc(k)}, contrast ${pc(c)}`);
+  if(mode!=='color'){
+    const[a,b]=mode==='tone'?toneAt(P):lightAt(P),pc=v=>String(Math.round(Math.max(0,Math.min(1,v))*100)).padStart(2,'0')+'%';
+    $('rh').textContent=pc(a);$('rs').textContent=pc(b);
+    puck.setAttribute('aria-valuetext',mode==='tone'?`Brightness ${pc(a)}, contrast ${pc(b)}`:`Light ${pc(a)} across the frame, ${pc(b)} down`);
   }else{
     const hue=Math.round(((Math.atan2(-P[1],P[0])/D2R)+360)%360),sat=Math.round(Math.hypot(P[0],P[1])*100);
     $('rh').textContent=String(hue).padStart(3,'0')+'°';$('rs').textContent=String(sat).padStart(2,'0')+'%';
@@ -253,7 +260,7 @@ function render(){
 }
 function setFromEvent(e){
   const b=scope.getBoundingClientRect();let u=(e.clientX-b.left)/b.width*2-1,v=(e.clientY-b.top)/b.height*2-1;
-  const m=Math.hypot(u,v);if(m>1){u/=m;v/=m}P=[u,v];hero=false;clearBrand();render();
+  P=clampP(u,v);hero=false;clearBrand();render();
 }
 let drag=false;
 function explored(){puck.classList.remove('hint');$('cue').hidden=true}
@@ -263,7 +270,7 @@ scope.addEventListener('pointerup',()=>drag=false);
 scope.addEventListener('pointercancel',()=>drag=false);
 scope.addEventListener('dblclick',()=>{P=home();hero=true;clearBrand();render()});
 puck.addEventListener('keydown',e=>{const st=e.shiftKey?.08:.02,m={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
-  if(e.key==='Enter'){P=home();hero=true;render();return}if(!m)return;e.preventDefault();hero=false;explored();let u=P[0]+m[0],v=P[1]+m[1],r=Math.hypot(u,v);if(r>1){u/=r;v/=r}P=[u,v];render()});
+  if(e.key==='Enter'){P=home();hero=true;render();return}if(!m)return;e.preventDefault();hero=false;explored();P=clampP(P[0]+m[0],P[1]+m[1]);render()});
 new ResizeObserver(drawTrace).observe(scope);
 
 /* ---- click-to-zoom: shows the gallery image at once, swaps in the full-size one when it has loaded ---- */
@@ -291,13 +298,15 @@ lightbox.addEventListener('click',e=>{
 
 /* ---- mapping mode ---- */
 const NOTES={color:'Drag the point, or paste a brand colour to see frames that sit in it. Hover a frame for its palette.',
-  tone:'Drag the point: dark to light across, flat to punchy up and down. Hover a frame for its palette.'};
+  tone:'Drag the point: dark to light across, flat to punchy up and down. Hover a frame for its palette.',
+  light:'Drag the point to find frames where the light sits left or right, high or low in the frame. Hover a frame for its palette.'};
+const WORDS={color:['HUE','SAT','colour'],tone:['KEY','CONTRAST','tone'],light:['ACROSS','DOWN','light']};
 function setMode(m){
   if(m===mode)return;mode=m;clearBrand();
   document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
-  $('match').hidden=m==='tone';$('note').textContent=NOTES[m];
-  $('cue').innerHTML=`<b>Drag the dot</b> to change the photos by ${m==='tone'?'tone':'colour'}.`;
-  $('l1').textContent=m==='tone'?'KEY':'HUE';$('l2').textContent=m==='tone'?'CONTRAST':'SAT';
+  scope.classList.toggle('sq',m!=='color');$('match').hidden=m!=='color';$('note').textContent=NOTES[m];
+  $('cue').innerHTML=`<b>Drag the dot</b> to change the photos by ${WORDS[m][2]}.`;
+  $('l1').textContent=WORDS[m][0];$('l2').textContent=WORDS[m][1];
   P=home();hero=true;graticule();render();drawTrace();
 }
 $('modes').addEventListener('click',e=>{const b=e.target.closest('button[data-mode]');if(b&&!b.disabled)setMode(b.dataset.mode)});
@@ -351,15 +360,15 @@ document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&
     for(let j=0;j<n;j++){const[,Cb,Cr]=ycc([rgb[j*3],rgb[j*3+1],rgb[j*3+2]]),[u,v]=uv(Cb,Cr);pts[j*2]=u;pts[j*2+1]=v}
     /* gallery uses thumb (or src); zoom uses full (or falls back to the same low-res file) */
     const url=encodeURI(o.thumb||o.src);
-    FRAMES.push({id,url,fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal,k:o.k,c:o.c}});
+    FRAMES.push({id,url,fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal,k:o.k,c:o.c,lx:o.lx,ly:o.ly}});
   });
-  /* tone mode: fit the key/contrast axes to this collection so photos spread across the scope */
+  /* tone and light modes: fit the axes to this collection so photos spread across the scope */
+  const rng=vals=>{let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<.05){const m=(lo+hi)/2;lo=m-.025;hi=m+.025}return[lo,hi]};
+  const off=m=>{const b=document.querySelector(`#modes [data-mode="${m}"]`);b.disabled=true;b.title='Re-run make_manifest.py to enable'};
   const T=FRAMES.filter(f=>f.t.k!=null);
-  if(T.length){
-    const rng=(vals)=>{let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<.05){const m=(lo+hi)/2;lo=m-.025;hi=m+.025}return[lo,hi]};
-    const[k0,k1]=rng(T.map(f=>f.t.k)),[c0,c1]=rng(T.map(f=>f.t.c));TONE={k0,k1,c0,c1};
-    T.forEach(f=>f.t.q=toneUV(f.t.k,f.t.c));
-  }else{const tb=document.querySelector('#modes [data-mode="tone"]');tb.disabled=true;tb.title='Re-run make_manifest.py to enable'}
+  if(T.length){const[k0,k1]=rng(T.map(f=>f.t.k)),[c0,c1]=rng(T.map(f=>f.t.c));TONE={k0,k1,c0,c1};T.forEach(f=>f.t.q=toneUV(f.t.k,f.t.c))}else off('tone');
+  const Lt=FRAMES.filter(f=>f.t.lx!=null);
+  if(Lt.length){const[x0,x1]=rng(Lt.map(f=>f.t.lx)),[y0,y1]=rng(Lt.map(f=>f.t.ly));LIGHT={x0,x1,y0,y1};Lt.forEach(f=>f.t.l=lightUV(f.t.lx,f.t.ly))}else off('light');
   render();drawTrace();
 })();
 })();
