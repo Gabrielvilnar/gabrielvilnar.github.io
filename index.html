@@ -14,7 +14,7 @@
 :root{
   --bg:#f7f7f5; --ink:#161615; --mute:#8e8d88; --line:#dcdbd6; --accent:#800000;
   --scope:#e8e7e3; --grat:#d2d0ca; --grat-ink:#aeaba4; --skin:#cbb8a6; --puck:#1a1a19;
-  --mat:#cccccc; /* 18% grey: the border around each photo */
+  --mat:#cccccc; /* border colour around each photo */
   --sans:"Geist","Helvetica Neue",Helvetica,Arial,sans-serif;
   --mono:"Geist Mono",ui-monospace,Menlo,Consolas,monospace;
 }
@@ -94,6 +94,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 .tile{position:relative;overflow:hidden;margin:0;cursor:pointer}
 .mat{position:relative;aspect-ratio:1;background:var(--mat)}
 .mat img{position:absolute;inset:5%;width:90%;height:90%;object-fit:contain;display:block}
+.grid.one{grid-template-columns:minmax(0,1fr);max-width:calc(100vh - 140px);margin-inline:auto}
 .tile.in img{animation:in .45s ease both}
 @keyframes in{from{opacity:0}to{opacity:1}}
 
@@ -240,7 +241,7 @@ function drawTrace(){
   tctx.putImageData(timg,0,0);
 }
 
-function nearest(){return FRAMES.filter(f=>pos(f)).map(f=>({f,d:Math.hypot(pos(f)[0]-P[0],pos(f)[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,SHOW).map(o=>o.f.id)}
+function nearest(){return FRAMES.filter(f=>pos(f)).map(f=>({f,d:Math.hypot(pos(f)[0]-P[0],pos(f)[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,mode==='light'?1:SHOW).map(o=>o.f.id)}
 function render(){
   puck.style.left=`${50+P[0]*50}%`;puck.style.top=`${50+P[1]*50}%`;
   if(mode!=='color'){
@@ -257,7 +258,15 @@ function render(){
   const prev=new Set(shown);shown=next;
   grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}" data-id="${id}"><div class="mat"><img src="${f.url}" loading="lazy" decoding="async" width="520" height="520" alt="Photograph" onerror="console.warn('Missing image:',this.src)"></div><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
   drawTrace();
+  /* light mode shows one photo large: gallery version at once, full-size swapped in once the dot rests */
+  clearTimeout(upT);
+  if(mode==='light'){const id=shown[0],f=FRAMES[id];
+    if(f&&f.fullUrl!==f.url)upT=setTimeout(()=>{const im=new Image();
+      im.onload=()=>{const el=grid.querySelector('.tile[data-id="'+id+'"] img');if(el&&mode==='light')el.src=f.fullUrl};
+      im.onerror=()=>console.warn('Full-size image not found, keeping gallery version:',f.fullUrl);
+      im.src=f.fullUrl},150)}
 }
+let upT=0;
 function setFromEvent(e){
   const b=scope.getBoundingClientRect();let u=(e.clientX-b.left)/b.width*2-1,v=(e.clientY-b.top)/b.height*2-1;
   P=clampP(u,v);hero=false;clearBrand();render();
@@ -299,12 +308,12 @@ lightbox.addEventListener('click',e=>{
 /* ---- mapping mode ---- */
 const NOTES={color:'Drag the point, or paste a brand colour to see frames that sit in it. Hover a frame for its palette.',
   tone:'Drag the point: dark to light across, flat to punchy up and down. Hover a frame for its palette.',
-  light:'Drag the point to find frames where the light sits left or right, high or low in the frame. Hover a frame for its palette.'};
+  light:'Drag the point to find the photo whose light sits left or right, high or low in the frame. Hover for its palette.'};
 const WORDS={color:['HUE','SAT','colour'],tone:['KEY','CONTRAST','tone'],light:['ACROSS','DOWN','light']};
 function setMode(m){
   if(m===mode)return;mode=m;clearBrand();
   document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
-  scope.classList.toggle('sq',m!=='color');$('match').hidden=m!=='color';$('note').textContent=NOTES[m];
+  scope.classList.toggle('sq',m!=='color');grid.classList.toggle('one',m==='light');$('match').hidden=m!=='color';$('note').textContent=NOTES[m];
   $('cue').innerHTML=`<b>Drag the dot</b> to change the photos by ${WORDS[m][2]}.`;
   $('l1').textContent=WORDS[m][0];$('l2').textContent=WORDS[m][1];
   P=home();hero=true;graticule();render();drawTrace();
