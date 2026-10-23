@@ -18,14 +18,11 @@ from PIL import Image, ImageOps
 EXT = {".webp", ".jpg", ".jpeg", ".png", ".avif"}
 VERSION = 4            # bump to force re-analysis of everything
 K = 3.4                # scope zoom (must match index.html)
-THUMB = 360           # longest edge of the small gallery-wall thumbnails
 AW, AH = 80, 53        # size used for position / brightness / palette
 TW, TH = 40, 27        # size of the pixel sample used to draw the trace
 
 root = pathlib.Path(__file__).parent
 out = root / "photos.json"
-THUMBS = root / "thumbs"
-THUMBS.mkdir(exist_ok=True)
 
 
 def ycc(r, g, b):
@@ -46,12 +43,6 @@ def palette(px, k=5):
             s = sums[j]; s[0] += c[0]; s[1] += c[1]; s[2] += c[2]; s[3] += 1
         C = [[s[0]/s[3], s[1]/s[3], s[2]/s[3]] if s[3] else C[i] for i, s in enumerate(sums)]
     return [[round(v) for v in c] for c in sorted(C, key=lum)]
-
-
-def make_thumb(path, dest):
-    im = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
-    im.thumbnail((THUMB, THUMB))
-    im.save(dest, "JPEG", quality=80)
 
 
 def analyse(path):
@@ -98,18 +89,10 @@ for f in files:
             continue
         done += 1
     full = fulls.get(f.stem.lower())
-    e = {k: v for k, v in e.items() if k != "full"}
+    e = {k: v for k, v in e.items() if k not in ("full", "th")}   # drops the old thumbnail field if present
     if full:
         e["full"] = full.relative_to(root).as_posix()
-    th = THUMBS / f"{h}.jpg"
-    if not th.exists():
-        make_thumb(f, th)
-    e["th"] = th.relative_to(root).as_posix()
     entries.append(e)
 
-keep = {pathlib.Path(e["th"]).name for e in entries}
-for t in THUMBS.glob("*.jpg"):
-    if t.name not in keep:
-        t.unlink()
 out.write_text("[\n" + ",\n".join(json.dumps(e, separators=(",", ":")) for e in entries) + "\n]\n")
 print(f"photos.json: {len(entries)} photos, {sum('full' in e for e in entries)} with a full-size version ({done} analysed, {len(entries) - done} reused)")

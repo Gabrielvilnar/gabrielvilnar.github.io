@@ -103,7 +103,7 @@ html.wall .page{height:auto;min-height:100%;display:block}
 html.wall main{display:block}
 html.wall .left{display:none}
 html.wall header{position:sticky;top:0;z-index:6;background:var(--bg);padding-block:8px;margin-bottom:8px}
-html.wall .grid{grid-template-columns:repeat(var(--cols,6),minmax(0,1fr));gap:6px;max-width:none;align-content:start}
+html.wall .grid{grid-template-columns:repeat(var(--cols,3),minmax(0,1fr));gap:10px;max-width:1100px;margin-inline:auto;align-content:start}
 .lb-nav{position:absolute;top:50%;transform:translateY(-50%);font-size:34px;line-height:1;padding:12px 16px;color:var(--mute);display:none;z-index:2}
 .lb-nav:hover{color:var(--ink)}.lb-nav.prev{left:8px}.lb-nav.next{right:8px}
 .lightbox.nav .lb-nav{display:block}
@@ -351,11 +351,11 @@ function wallLayout(C){
     [G[a],G[b]]=[G[b],G[a]];const af=loc(a,b);if(af>bf&&(T<=0||rnd()>=Math.exp((bf-af)/T)))[G[a],G[b]]=[G[b],G[a]]}
   return wallCache[C]=Array.from(G);
 }
-const wallCols=()=>Math.max(3,Math.floor((grid.clientWidth||innerWidth-40)/(innerWidth<760?100:130)));
+const wallCols=()=>innerWidth<760?2:3;   // 3 across on laptops, 2 on phones
 function renderWall(){
   if(!FRAMES.length)return;
   const C=wallCols();WALLC=C;WALL=wallLayout(C);grid.style.setProperty('--cols',C);
-  grid.innerHTML=WALL.map(id=>`<figure class="tile" data-id="${id}"><div class="mat"><img src="${FRAMES[id].th}" loading="lazy" decoding="async" width="360" height="360" alt="Photograph" onerror="console.warn('Missing image:',this.src)"></div></figure>`).join('');
+  grid.innerHTML=WALL.map(id=>`<figure class="tile" data-id="${id}"><div class="mat"><img src="${FRAMES[id].url}" loading="lazy" decoding="async" width="360" height="360" alt="Photograph" onerror="console.warn('Missing image:',this.src)"></div></figure>`).join('');
 }
 let rsT=0;addEventListener('resize',()=>{if(mode!=='grid')return;clearTimeout(rsT);rsT=setTimeout(()=>{if(wallCols()!==WALLC)renderWall()},150)});
 $('modes').addEventListener('click',e=>{const b=e.target.closest('button[data-mode]');if(b&&!b.disabled)setMode(b.dataset.mode)});
@@ -410,7 +410,7 @@ document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&
     for(let j=0;j<n;j++){const[,Cb,Cr]=ycc([rgb[j*3],rgb[j*3+1],rgb[j*3+2]]),[u,v]=uv(Cb,Cr);pts[j*2]=u;pts[j*2+1]=v}
     /* gallery uses thumb (or src); zoom uses full (or falls back to the same low-res file) */
     const url=encodeURI(o.thumb||o.src);
-    FRAMES.push({id,url,th:encodeURI(o.th||o.thumb||o.src),fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal,k:o.k,c:o.c,}});
+    FRAMES.push({id,url,fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal,k:o.k,c:o.c,}});
   });
   /* tone and light modes: fit the axes to this collection so photos spread across the scope */
   const rng=vals=>{let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<.05){const m=(lo+hi)/2;lo=m-.025;hi=m+.025}return[lo,hi]};
