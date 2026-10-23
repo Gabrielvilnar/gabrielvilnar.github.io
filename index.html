@@ -94,10 +94,19 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 .tile{position:relative;overflow:hidden;margin:0;cursor:pointer}
 .mat{position:relative;aspect-ratio:1;background:var(--mat)}
 .mat img{position:absolute;inset:5%;width:90%;height:90%;object-fit:contain;display:block}
-.grid.one{grid-template-columns:minmax(0,1fr);max-width:calc(100vh - 140px);margin-inline:auto}
 .tile.in img{animation:in .45s ease both}
 @keyframes in{from{opacity:0}to{opacity:1}}
 
+/* grid view: every photo, page scrolls */
+html.wall,html.wall body{height:auto}
+html.wall .page{height:auto;min-height:100%;display:block}
+html.wall main{display:block}
+html.wall .left{display:none}
+html.wall header{position:sticky;top:0;z-index:6;background:var(--bg);padding-block:8px;margin-bottom:8px}
+html.wall .grid{grid-template-columns:repeat(var(--cols,6),minmax(0,1fr));gap:6px;max-width:none;align-content:start}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);font-size:34px;line-height:1;padding:12px 16px;color:var(--mute);display:none;z-index:2}
+.lb-nav:hover{color:var(--ink)}.lb-nav.prev{left:8px}.lb-nav.next{right:8px}
+.lightbox.nav .lb-nav{display:block}
 /* click-to-zoom overlay */
 .lightbox{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s ease}
 .lightbox.active{opacity:1;pointer-events:auto}
@@ -108,7 +117,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 @media (max-width:760px){
   main{display:block}
   .left{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;background:var(--bg);display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px 16px;padding-block:8px 12px;margin-bottom:8px;border-bottom:1px solid var(--line)}
-  .left .scope{grid-row:1 / span 4;width:min(40vw,168px)}
+  .left .scope{grid-row:1 / span 3;width:min(40vw,168px)}
   .left .readout{gap:12px;font-size:11px}
   .left .match{padding:2px 0;gap:8px}
   .left .match label{display:none}
@@ -129,6 +138,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 <div class="page">
   <header>
     <a class="logo" href="#" aria-label="Gab"><img src="logo.jpeg" alt="Gab" width="28" height="28"></a>
+    <div class="modes" id="modes" role="group" aria-label="View"><button type="button" data-mode="color" aria-pressed="true">Colour</button><button type="button" data-mode="tone" aria-pressed="false">Tone</button><button type="button" data-mode="grid" aria-pressed="false">Grid</button></div>
     <button class="infobtn" id="infobtn" type="button" aria-expanded="false" aria-controls="info">Info</button>
     <div class="info" id="info" hidden>
       <p>Gab — Photos I Like</p>
@@ -145,7 +155,6 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
         <div class="brand" id="brand" hidden></div>
         <div class="puck hint" id="puck" tabindex="0" role="slider" aria-label="Colour picker. Arrow keys move, Enter resets."></div>
       </div>
-      <div class="modes" id="modes" role="group" aria-label="Mapping mode"><button type="button" data-mode="color" aria-pressed="true">Colour</button><button type="button" data-mode="tone" aria-pressed="false">Tone</button><button type="button" data-mode="light" aria-pressed="false">Light</button></div>
       <p class="cue" id="cue"><b>Drag the dot</b> to change the photos by colour.</p>
       <div class="readout"><span><em id="l1">HUE</em> <b id="rh">000°</b></span><span><em id="l2">SAT</em> <b id="rs">00%</b></span></div>
       <form class="match" id="match" autocomplete="off">
@@ -162,6 +171,7 @@ main{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr);gap:clam
 <div class="lightbox" id="lightbox" aria-hidden="true">
   <img id="lb-img" alt="Enlarged photograph">
   <div class="lb-pal" id="lb-pal"></div>
+  <button class="lb-nav prev" type="button" aria-label="Previous photo">‹</button><button class="lb-nav next" type="button" aria-label="Next photo">›</button>
 </div>
 
 <script>
@@ -182,26 +192,23 @@ const $=id=>document.getElementById(id);
 const scope=$('scope'),puck=$('puck'),trace=$('trace'),grid=$('grid'),lightbox=$('lightbox'),lbImg=$('lb-img'),lbPal=$('lb-pal');
 const HOME=[Math.cos(123*D2R)*.22,-Math.sin(123*D2R)*.22];
 let P=[...HOME],shown=[],hero=true;
-/* mapping modes: 'color' (hue/saturation, circular scope), 'tone' (brightness/contrast) and 'light' (where the light sits in the frame); tone and light use a square scope */
+/* mapping modes: 'color' (hue/saturation, circular scope), 'tone' (brightness/contrast, square scope) and 'grid' (every photo, arranged by similarity) */
 let mode='color';const A=.78;
-let TONE={k0:0,k1:1,c0:0,c1:1},LIGHT={x0:0,x1:1,y0:0,y1:1};
+let TONE={k0:0,k1:1,c0:0,c1:1};
 const nz=(v,a,b)=>((v-a)/(b-a)*2-1)*A,dz=(w,a,b)=>a+((w/A+1)/2)*(b-a);
 const toneUV=(k,c)=>[nz(k,TONE.k0,TONE.k1),-nz(c,TONE.c0,TONE.c1)];
 const toneAt=([u,v])=>[dz(u,TONE.k0,TONE.k1),dz(-v,TONE.c0,TONE.c1)];
-const lightUV=(x,y)=>[nz(x,LIGHT.x0,LIGHT.x1),nz(y,LIGHT.y0,LIGHT.y1)];
-const lightAt=([u,v])=>[dz(u,LIGHT.x0,LIGHT.x1),dz(v,LIGHT.y0,LIGHT.y1)];
-const home=()=>mode==='color'?[...HOME]:[0,0];
-const pos=f=>mode==='tone'?f.t.q:mode==='light'?f.t.l:f.t.p;
-const clampP=(u,v)=>{if(mode!=='color')return[Math.max(-1,Math.min(1,u)),Math.max(-1,Math.min(1,v))];const m=Math.hypot(u,v);return m>1?[u/m,v/m]:[u,v]};
+const home=()=>mode==='tone'?[0,0]:[...HOME];
+const pos=f=>mode==='tone'?f.t.q:f.t.p;
+const clampP=(u,v)=>{if(mode==='tone')return[Math.max(-1,Math.min(1,u)),Math.max(-1,Math.min(1,v))];const m=Math.hypot(u,v);return m>1?[u/m,v/m]:[u,v]};
 
 function graticule(){
   let s='';
-  if(mode!=='color'){
+  if(mode==='tone'){
     s+=`<rect class="g" x="-1" y="-1" width="2" height="2"/>`;
     [-.5,.5].forEach(t=>s+=`<line class="g" x1="${t}" x2="${t}" y1="-1" y2="1"/><line class="g" y1="${t}" y2="${t}" x1="-1" x2="1"/>`);
     s+=`<line class="g" x1="-1" x2="1" y1="0" y2="0"/><line class="g" y1="-1" y2="1" x1="0" x2="0"/>`;
-    const L=mode==='tone'?['DARK','LIGHT','PUNCHY','FLAT']:['LEFT','RIGHT','TOP','BOTTOM'];
-    [[L[0],-.87,-.06],[L[1],.87,-.06],[L[2],0,-.95],[L[3],0,.95]].forEach(([l,x,y])=>s+=`<text class="g-t" x="${x}" y="${y}">${l}</text>`);
+    [['DARK',-.87,-.06],['LIGHT',.87,-.06],['PUNCHY',0,-.95],['FLAT',0,.95]].forEach(([l,x,y])=>s+=`<text class="g-t" x="${x}" y="${y}">${l}</text>`);
     $('grat').innerHTML=s;return;
   }
   [.25,.5,.75,1].forEach(r=>s+=`<circle class="g" r="${r}"/>`);
@@ -234,20 +241,21 @@ function drawTone(dpr){
 function drawTrace(){
   const dpr=Math.min(2,devicePixelRatio||1),S=Math.min(560,Math.round(scope.clientWidth*dpr));if(!S)return;
   if(S!==TB){TB=S;trace.width=trace.height=S;tctx=trace.getContext('2d');timg=tctx.createImageData(S,S);base=new Float32Array(S*S*4);acc=new Float32Array(S*S*4);baseDone=new Set()}
-  if(mode!=='color'){drawTone(S/scope.clientWidth);return}
+  if(mode==='tone'){drawTone(S/scope.clientWidth);return}
   for(const f of FRAMES)if(f.t.rgb&&!baseDone.has(f.id)){blend(base,f,.09);baseDone.add(f.id)}
   acc.set(base);for(const id of shown){const f=FRAMES[id];if(f.t.rgb)blend(acc,f,.7)}
   const d=timg.data;for(let q=0;q<acc.length;q+=4){const a=acc[q+3];if(a<=0){d[q+3]=0;continue}d[q]=acc[q]/a;d[q+1]=acc[q+1]/a;d[q+2]=acc[q+2]/a;d[q+3]=a*255}
   tctx.putImageData(timg,0,0);
 }
 
-function nearest(){return FRAMES.filter(f=>pos(f)).map(f=>({f,d:Math.hypot(pos(f)[0]-P[0],pos(f)[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,mode==='light'?1:SHOW).map(o=>o.f.id)}
+function nearest(){return FRAMES.filter(f=>pos(f)).map(f=>({f,d:Math.hypot(pos(f)[0]-P[0],pos(f)[1]-P[1])})).sort((a,b)=>a.d-b.d).slice(0,SHOW).map(o=>o.f.id)}
 function render(){
+  if(mode==='grid')return;
   puck.style.left=`${50+P[0]*50}%`;puck.style.top=`${50+P[1]*50}%`;
-  if(mode!=='color'){
-    const[a,b]=mode==='tone'?toneAt(P):lightAt(P),pc=v=>String(Math.round(Math.max(0,Math.min(1,v))*100)).padStart(2,'0')+'%';
+  if(mode==='tone'){
+    const[a,b]=toneAt(P),pc=v=>String(Math.round(Math.max(0,Math.min(1,v))*100)).padStart(2,'0')+'%';
     $('rh').textContent=pc(a);$('rs').textContent=pc(b);
-    puck.setAttribute('aria-valuetext',mode==='tone'?`Brightness ${pc(a)}, contrast ${pc(b)}`:`Light ${pc(a)} across the frame, ${pc(b)} down`);
+    puck.setAttribute('aria-valuetext',`Brightness ${pc(a)}, contrast ${pc(b)}`);
   }else{
     const hue=Math.round(((Math.atan2(-P[1],P[0])/D2R)+360)%360),sat=Math.round(Math.hypot(P[0],P[1])*100);
     $('rh').textContent=String(hue).padStart(3,'0')+'°';$('rs').textContent=String(sat).padStart(2,'0')+'%';
@@ -258,15 +266,7 @@ function render(){
   const prev=new Set(shown);shown=next;
   grid.innerHTML=shown.map(id=>{const f=FRAMES[id];return `<figure class="tile${prev.has(id)?'':' in'}" data-id="${id}"><div class="mat"><img src="${f.url}" loading="lazy" decoding="async" width="520" height="520" alt="Photograph" onerror="console.warn('Missing image:',this.src)"></div><div class="pal">${f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}" aria-label="Copy ${h}"><span>${h}</span></button>`}).join('')}</div></figure>`}).join('');
   drawTrace();
-  /* light mode shows one photo large: gallery version at once, full-size swapped in once the dot rests */
-  clearTimeout(upT);
-  if(mode==='light'){const id=shown[0],f=FRAMES[id];
-    if(f&&f.fullUrl!==f.url)upT=setTimeout(()=>{const im=new Image();
-      im.onload=()=>{const el=grid.querySelector('.tile[data-id="'+id+'"] img');if(el&&mode==='light')el.src=f.fullUrl};
-      im.onerror=()=>console.warn('Full-size image not found, keeping gallery version:',f.fullUrl);
-      im.src=f.fullUrl},150)}
 }
-let upT=0;
 function setFromEvent(e){
   const b=scope.getBoundingClientRect();let u=(e.clientX-b.left)/b.width*2-1,v=(e.clientY-b.top)/b.height*2-1;
   P=clampP(u,v);hero=false;clearBrand();render();
@@ -285,7 +285,7 @@ new ResizeObserver(drawTrace).observe(scope);
 /* ---- click-to-zoom: shows the gallery image at once, swaps in the full-size one when it has loaded ---- */
 let lbCur=null;
 function openLightbox(f){
-  lbCur=f;lbImg.src=f.url;
+  lbCur=f;lbImg.src=f.url;lightbox.classList.toggle('nav',mode==='grid');
   lbPal.innerHTML=f.t.pal.map(c=>{const h=hexOf(c),lt=ycc(c)[0]>.6;return `<button type="button" data-hex="${h}" style="background:${h};color:${lt?'#1a1a19':'#f4f3ef'}">${h}</button>`}).join('');
   lightbox.classList.add('active');lightbox.setAttribute('aria-hidden','false');
   if(f.fullUrl!==f.url){const im=new Image();
@@ -293,6 +293,7 @@ function openLightbox(f){
     im.onerror=()=>console.warn('Full-size image not found, keeping gallery version:',f.fullUrl);
     im.src=f.fullUrl}
 }
+function step(d){const i=WALL.indexOf(lbCur.id)+d;if(i>=0&&i<WALL.length)openLightbox(FRAMES[WALL[i]])}
 function closeLightbox(){lbCur=null;lightbox.classList.remove('active');lightbox.setAttribute('aria-hidden','true')}
 grid.addEventListener('click',e=>{
   if(e.target.closest('.pal button'))return;
@@ -300,6 +301,7 @@ grid.addEventListener('click',e=>{
   const f=FRAMES[Number(tile.dataset.id)];if(f)openLightbox(f);
 });
 lightbox.addEventListener('click',e=>{
+  const n=e.target.closest('.lb-nav');if(n){step(n.classList.contains('next')?1:-1);return}
   const b=e.target.closest('.lb-pal button');
   if(b){const h=b.dataset.hex;try{navigator.clipboard.writeText(h).then(()=>toast('Copied '+h),()=>toast(h))}catch(_){toast(h)}return}
   if(e.target===lightbox)closeLightbox();   // background only: clicking the photo itself keeps it open
@@ -307,17 +309,55 @@ lightbox.addEventListener('click',e=>{
 
 /* ---- mapping mode ---- */
 const NOTES={color:'Drag the point, or paste a brand colour to see frames that sit in it. Hover a frame for its palette.',
-  tone:'Drag the point: dark to light across, flat to punchy up and down. Hover a frame for its palette.',
-  light:'Drag the point to find the photo whose light sits left or right, high or low in the frame. Hover for its palette.'};
-const WORDS={color:['HUE','SAT','colour'],tone:['KEY','CONTRAST','tone'],light:['ACROSS','DOWN','light']};
+  tone:'Drag the point: dark to light across, flat to punchy up and down. Hover a frame for its palette.'};
+const WORDS={color:['HUE','SAT','colour'],tone:['KEY','CONTRAST','tone']};
 function setMode(m){
-  if(m===mode)return;mode=m;clearBrand();
+  if(m===mode)return;const was=mode;mode=m;clearBrand();
   document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
-  scope.classList.toggle('sq',m!=='color');grid.classList.toggle('one',m==='light');$('match').hidden=m!=='color';$('note').textContent=NOTES[m];
+  document.documentElement.classList.toggle('wall',m==='grid');
+  grid.setAttribute('aria-live',m==='grid'?'off':'polite');
+  if(m==='grid'||was==='grid')shown=[];
+  if(m==='grid'){renderWall();scrollTo(0,0);return}
+  scope.classList.toggle('sq',m==='tone');$('match').hidden=m!=='color';$('note').textContent=NOTES[m];
   $('cue').innerHTML=`<b>Drag the dot</b> to change the photos by ${WORDS[m][2]}.`;
   $('l1').textContent=WORDS[m][0];$('l2').textContent=WORDS[m][1];
   P=home();hero=true;graticule();render();drawTrace();
 }
+
+/* ---- grid view: every photo, arranged so neighbours in all directions look alike ----
+   features per photo: colour position (p) + brightness (k) + contrast (c), standardised.
+   start: PCA sort into rows; then seeded simulated-annealing swaps to minimise neighbour distance */
+let WALL=[],WALLC=0;const wallCache={};
+function wallLayout(C){
+  if(wallCache[C])return wallCache[C];
+  const N=FRAMES.length,D=4,Fv=new Float32Array(N*D);
+  const raw=FRAMES.map(f=>[f.t.p[0],f.t.p[1],f.t.k??f.t.y,f.t.c??0]);
+  for(let k=0;k<D;k++){const m=raw.reduce((s,r)=>s+r[k],0)/N,sd=Math.max(.02,Math.sqrt(raw.reduce((s,r)=>s+(r[k]-m)**2,0)/N));raw.forEach((r,i)=>Fv[i*D+k]=(r[k]-m)/sd)}
+  const cov=Array.from({length:D},()=>new Float64Array(D));
+  for(let i=0;i<N;i++)for(let a=0;a<D;a++)for(let b=0;b<D;b++)cov[a][b]+=Fv[i*D+a]*Fv[i*D+b]/N;
+  const eig=M=>{let v=[1,.7,.4,.2];for(let t=0;t<60;t++){const w=M.map(r=>r.reduce((s,x,j)=>s+x*v[j],0)),n=Math.hypot(...w)||1;v=w.map(x=>x/n)}
+    const l=M.map(r=>r.reduce((s,x,j)=>s+x*v[j],0)).reduce((s,x,j)=>s+x*v[j],0);return[v,l]};
+  const[v1,l1]=eig(cov),[v2]=eig(cov.map((r,a)=>Float64Array.from(r,(x,b)=>x-l1*v1[a]*v1[b])));
+  const pr=(i,v)=>{let s=0;for(let k=0;k<D;k++)s+=Fv[i*D+k]*v[k];return s};
+  const ord=[...Array(N).keys()].map(i=>({i,x:pr(i,v1),y:pr(i,v2)})).sort((a,b)=>a.y-b.y),G=new Int32Array(N),R=Math.ceil(N/C);
+  for(let r=0;r<R;r++)ord.slice(r*C,Math.min(N,(r+1)*C)).sort((a,b)=>a.x-b.x).forEach((o,c)=>G[r*C+c]=o.i);
+  const NB=Array.from({length:N},(_,p)=>{const a=[],c=p%C;if(c>0)a.push(p-1);if(c<C-1&&p+1<N)a.push(p+1);if(p>=C)a.push(p-C);if(p+C<N)a.push(p+C);return a});
+  const d2=(x,y)=>{let s=0;for(let k=0;k<D;k++){const t=Fv[x*D+k]-Fv[y*D+k];s+=t*t}return s};
+  const loc=(a,b)=>{let s=0;for(const q of NB[a])s+=d2(G[a],G[q]);for(const q of NB[b])s+=d2(G[b],G[q]);if(NB[a].includes(b))s-=d2(G[a],G[b]);return s};
+  let e=0,cnt=0;for(let p=0;p<N;p++)for(const q of NB[p])if(q>p){e+=d2(G[p],G[q]);cnt++}
+  const T0=e/Math.max(1,cnt)*.25,IT=Math.min(N*400,400000);let sd=12345;
+  const rnd=()=>{sd=sd+0x6D2B79F5|0;let t=Math.imul(sd^sd>>>15,1|sd);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+  for(let it=0;it<IT;it++){const a=(rnd()*N)|0,b=(rnd()*N)|0;if(a===b)continue;const T=T0*(1-it/IT),bf=loc(a,b);
+    [G[a],G[b]]=[G[b],G[a]];const af=loc(a,b);if(af>bf&&(T<=0||rnd()>=Math.exp((bf-af)/T)))[G[a],G[b]]=[G[b],G[a]]}
+  return wallCache[C]=Array.from(G);
+}
+const wallCols=()=>Math.max(3,Math.floor((grid.clientWidth||innerWidth-40)/(innerWidth<760?100:130)));
+function renderWall(){
+  if(!FRAMES.length)return;
+  const C=wallCols();WALLC=C;WALL=wallLayout(C);grid.style.setProperty('--cols',C);
+  grid.innerHTML=WALL.map(id=>`<figure class="tile" data-id="${id}"><div class="mat"><img src="${FRAMES[id].th}" loading="lazy" decoding="async" width="360" height="360" alt="Photograph" onerror="console.warn('Missing image:',this.src)"></div></figure>`).join('');
+}
+let rsT=0;addEventListener('resize',()=>{if(mode!=='grid')return;clearTimeout(rsT);rsT=setTimeout(()=>{if(wallCols()!==WALLC)renderWall()},150)});
 $('modes').addEventListener('click',e=>{const b=e.target.closest('button[data-mode]');if(b&&!b.disabled)setMode(b.dataset.mode)});
 
 /* ---- brand colour match ---- */
@@ -351,6 +391,7 @@ $('copymail').addEventListener('click',()=>{
 const ib=$('infobtn'),info=$('info');
 ib.onclick=()=>{info.hidden=!info.hidden;ib.setAttribute('aria-expanded',!info.hidden)};
 document.addEventListener('keydown',e=>{
+  if(lightbox.classList.contains('active')&&mode==='grid'){const d={ArrowLeft:-1,ArrowRight:1,ArrowUp:-WALLC,ArrowDown:WALLC}[e.key];if(d){e.preventDefault();step(d);return}}
   if(e.key!=='Escape')return;
   if(lightbox.classList.contains('active'))closeLightbox();
   else if(!info.hidden){info.hidden=true;ib.setAttribute('aria-expanded','false');ib.focus()}
@@ -369,15 +410,13 @@ document.addEventListener('click',e=>{if(!info.hidden&&!info.contains(e.target)&
     for(let j=0;j<n;j++){const[,Cb,Cr]=ycc([rgb[j*3],rgb[j*3+1],rgb[j*3+2]]),[u,v]=uv(Cb,Cr);pts[j*2]=u;pts[j*2+1]=v}
     /* gallery uses thumb (or src); zoom uses full (or falls back to the same low-res file) */
     const url=encodeURI(o.thumb||o.src);
-    FRAMES.push({id,url,fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal,k:o.k,c:o.c,lx:o.lx,ly:o.ly}});
+    FRAMES.push({id,url,th:encodeURI(o.th||o.thumb||o.src),fullUrl:encodeURI(o.full||o.thumb||o.src),t:{pts,rgb,p:o.p,y:o.y,pal:o.pal,k:o.k,c:o.c,}});
   });
   /* tone and light modes: fit the axes to this collection so photos spread across the scope */
   const rng=vals=>{let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<.05){const m=(lo+hi)/2;lo=m-.025;hi=m+.025}return[lo,hi]};
   const off=m=>{const b=document.querySelector(`#modes [data-mode="${m}"]`);b.disabled=true;b.title='Re-run make_manifest.py to enable'};
   const T=FRAMES.filter(f=>f.t.k!=null);
   if(T.length){const[k0,k1]=rng(T.map(f=>f.t.k)),[c0,c1]=rng(T.map(f=>f.t.c));TONE={k0,k1,c0,c1};T.forEach(f=>f.t.q=toneUV(f.t.k,f.t.c))}else off('tone');
-  const Lt=FRAMES.filter(f=>f.t.lx!=null);
-  if(Lt.length){const[x0,x1]=rng(Lt.map(f=>f.t.lx)),[y0,y1]=rng(Lt.map(f=>f.t.ly));LIGHT={x0,x1,y0,y1};Lt.forEach(f=>f.t.l=lightUV(f.t.lx,f.t.ly))}else off('light');
   render();drawTrace();
 })();
 })();

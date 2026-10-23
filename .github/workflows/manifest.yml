@@ -17,6 +17,6 @@ jobs:
       - run: |
           git config user.name github-actions
           git config user.email actions@github.com
-          git add photos.json
+          git add -A photos.json thumbs
           git commit -m "Update photos.json" || exit 0
           git push
