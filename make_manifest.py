@@ -75,8 +75,8 @@ if out.exists():
 entries, done = [], 0
 FULL = root / "images" / "full"   # optional high-res copies, same name as the gallery photo
 fulls = {p.stem.lower(): p for p in FULL.glob("*") if p.suffix.lower() in EXT} if FULL.exists() else {}
-files = sorted(p for p in (root / "images").rglob("*")
-               if p.suffix.lower() in EXT and FULL not in p.parents)
+files = sorted(p for p in (root / "images").glob("*")      # only files directly in images/ (subfolders are ignored)
+               if p.is_file() and p.suffix.lower() in EXT)
 for f in files:
     src = f.relative_to(root).as_posix()
     h = hashlib.md5(f.read_bytes()).hexdigest()[:10]
