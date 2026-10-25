@@ -54,7 +54,7 @@
    xmp:CreatorTool="Ver.1.00"
    xmp:ModifyDate="2024-03-19T02:40:24.10"
    xmp:CreateDate="2024-03-19T02:40:24.10"
-   xmp:MetadataDate="2026-10-25T13:18:22-04:00"
+   xmp:MetadataDate="2026-10-25T14:38:04-04:00"
    aux:SerialNumber="3006928"
    aux:LensInfo="280/10 750/10 28/10 28/10"
    aux:Lens="TAMRON SP AF 28-75mm F2.8 XR Di LD Aspherical IF Macro A09NII"
@@ -67,7 +67,7 @@
    photoshop:EmbeddedXMPDigest="2AD1AC5BA3E424E6C7C1B8C3F9C2974A"
    xmpMM:DocumentID="1AF8AD8812FBF63282C260F44D26B3B0"
    xmpMM:OriginalDocumentID="1AF8AD8812FBF63282C260F44D26B3B0"
-   xmpMM:InstanceID="xmp.iid:04ed36ac-203e-4c6a-9f0d-3634d47ba8b3"
+   xmpMM:InstanceID="xmp.iid:6298212e-12ce-4779-b42b-c2b86b247460"
    crd:CameraProfile="Camera STANDARD"
    crd:LookName=""
    xmpDM:good="True"
@@ -174,10 +174,10 @@
    crs:CameraProfile="Adobe Standard"
    crs:CameraProfileDigest="51B4314CF8312BA027EF3FC60481FB35"
    crs:HasSettings="True"
-   crs:CropTop="0.385281"
-   crs:CropLeft="0.279747"
+   crs:CropTop="0.437867"
+   crs:CropLeft="0.293127"
    crs:CropBottom="0.913993"
-   crs:CropRight="0.63269"
+   crs:CropRight="0.610967"
    crs:CropAngle="0"
    crs:CropConstrainToWarp="0"
    crs:HasCrop="True"
@@ -214,8 +214,8 @@
       stEvt:changed="/metadata"/>
      <rdf:li
       stEvt:action="saved"
-      stEvt:instanceID="xmp.iid:04ed36ac-203e-4c6a-9f0d-3634d47ba8b3"
-      stEvt:when="2026-10-25T13:18:22-04:00"
+      stEvt:instanceID="xmp.iid:6298212e-12ce-4779-b42b-c2b86b247460"
+      stEvt:when="2026-10-25T14:38:04-04:00"
       stEvt:softwareAgent="Adobe Lightroom 8.2 (Macintosh)"
       stEvt:changed="/metadata"/>
     </rdf:Seq>
